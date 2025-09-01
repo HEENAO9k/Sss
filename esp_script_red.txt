@@ -1,0 +1,889 @@
+-- Enhanced Mobile ESP Script for Fluxus
+-- Red theme with dynamic RGB colors and speed boost
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
+
+local LocalPlayer = Players.LocalPlayer
+local Camera = workspace.CurrentCamera
+
+-- ESP Settings with red theme
+local ESPSettings = {
+    Enabled = false,
+    ShowNames = true,
+    ShowDistance = true,
+    ShowHealth = true,
+    ShowBoxes = true,
+    ShowTracers = false,
+    TeamCheck = false,
+    MaxDistance = 1000,
+    BoxColor = Color3.fromRGB(255, 50, 50), -- Red
+    NameColor = Color3.fromRGB(255, 255, 255),
+    DistanceColor = Color3.fromRGB(255, 100, 100), -- Light red
+    HealthColor = Color3.fromRGB(255, 0, 0), -- Pure red
+    TracerColor = Color3.fromRGB(255, 80, 80),
+    BoxThickness = 3,
+    TextStrokeThickness = 2
+}
+
+-- Storage for ESP objects
+local ESPObjects = {}
+
+-- Speed boost variables
+local speedBoostEnabled = false
+local originalWalkSpeed = 16
+
+-- RGB color cycling
+local rgbTime = 0
+local function getRGBColor(offset)
+    offset = offset or 0
+    local time = rgbTime + offset
+    local r = math.sin(time * 2) * 127 + 128
+    local g = math.sin(time * 2 + 2) * 127 + 128
+    local b = math.sin(time * 2 + 4) * 127 + 128
+    return Color3.fromRGB(r, g, b)
+end
+
+-- Create GUI with enhanced mobile design
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "ESPGui"
+ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+ScreenGui.ResetOnSpawn = false
+ScreenGui.DisplayOrder = 999
+
+-- Main Frame with red theme
+local MainFrame = Instance.new("Frame")
+MainFrame.Name = "MainFrame"
+MainFrame.Parent = ScreenGui
+MainFrame.AnchorPoint = Vector2.new(0, 0)
+MainFrame.BackgroundColor3 = Color3.fromRGB(20, 5, 5) -- Dark red
+MainFrame.BorderSizePixel = 0
+MainFrame.Position = UDim2.new(0, 10, 0, 50)
+MainFrame.Size = UDim2.new(0, 320, 0, 450)
+
+-- Gradient background for premium look
+local Gradient = Instance.new("UIGradient")
+Gradient.Color = ColorSequence.new{
+    ColorSequenceKeypoint.new(0, Color3.fromRGB(25, 5, 5)),
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(35, 10, 10))
+}
+Gradient.Rotation = 45
+Gradient.Parent = MainFrame
+
+-- Shadow effect
+local Shadow = Instance.new("Frame")
+Shadow.Name = "Shadow"
+Shadow.Parent = ScreenGui
+Shadow.AnchorPoint = Vector2.new(0, 0)
+Shadow.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+Shadow.BackgroundTransparency = 0.7
+Shadow.BorderSizePixel = 0
+Shadow.Position = UDim2.new(0, 15, 0, 55)
+Shadow.Size = UDim2.new(0, 320, 0, 450)
+Shadow.ZIndex = MainFrame.ZIndex - 1
+
+local ShadowCorner = Instance.new("UICorner")
+ShadowCorner.CornerRadius = UDim.new(0, 12)
+ShadowCorner.Parent = Shadow
+
+-- Main corner radius
+local MainCorner = Instance.new("UICorner")
+MainCorner.CornerRadius = UDim.new(0, 12)
+MainCorner.Parent = MainFrame
+
+-- Accent border with RGB animation
+local AccentBorder = Instance.new("Frame")
+AccentBorder.Name = "AccentBorder"
+AccentBorder.Parent = MainFrame
+AccentBorder.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
+AccentBorder.BackgroundTransparency = 0.3
+AccentBorder.BorderSizePixel = 0
+AccentBorder.Position = UDim2.new(0, 0, 0, 0)
+AccentBorder.Size = UDim2.new(1, 0, 0, 3)
+
+local AccentCorner = Instance.new("UICorner")
+AccentCorner.CornerRadius = UDim.new(0, 12)
+AccentCorner.Parent = AccentBorder
+
+-- Title with premium styling (no emoji)
+local TitleLabel = Instance.new("TextLabel")
+TitleLabel.Name = "TitleLabel"
+TitleLabel.Parent = MainFrame
+TitleLabel.BackgroundTransparency = 1
+TitleLabel.Position = UDim2.new(0, 0, 0, 10)
+TitleLabel.Size = UDim2.new(1, 0, 0, 50)
+TitleLabel.Font = Enum.Font.GothamBold
+TitleLabel.Text = "ESP Control Panel"
+TitleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+TitleLabel.TextSize = 20
+TitleLabel.TextStrokeTransparency = 0
+TitleLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+
+-- Scroll Frame with better mobile support
+local ScrollFrame = Instance.new("ScrollingFrame")
+ScrollFrame.Name = "ScrollFrame"
+ScrollFrame.Parent = MainFrame
+ScrollFrame.BackgroundTransparency = 1
+ScrollFrame.Position = UDim2.new(0, 15, 0, 70)
+ScrollFrame.Size = UDim2.new(1, -30, 1, -80)
+ScrollFrame.ScrollBarThickness = 8
+ScrollFrame.CanvasSize = UDim2.new(0, 0, 0, 400)
+ScrollFrame.ScrollingDirection = Enum.ScrollingDirection.Y
+ScrollFrame.ElasticBehavior = Enum.ElasticBehavior.WhenScrollable
+
+-- Custom scroll bar styling
+ScrollFrame.ScrollBarImageColor3 = Color3.fromRGB(255, 0, 0)
+
+-- UI Layout with better spacing
+local UIListLayout = Instance.new("UIListLayout")
+UIListLayout.Parent = ScrollFrame
+UIListLayout.Padding = UDim.new(0, 12)
+UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+
+-- Enhanced toggle button function (no emoji)
+local function CreateToggle(name, defaultValue, callback)
+    local ToggleFrame = Instance.new("Frame")
+    ToggleFrame.Name = name .. "Toggle"
+    ToggleFrame.Parent = ScrollFrame
+    ToggleFrame.BackgroundColor3 = Color3.fromRGB(40, 10, 10)
+    ToggleFrame.BorderSizePixel = 0
+    ToggleFrame.Size = UDim2.new(1, 0, 0, 45)
+    
+    -- Gradient for toggle frame
+    local ToggleGradient = Instance.new("UIGradient")
+    ToggleGradient.Color = ColorSequence.new{
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(35, 10, 10)),
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(45, 15, 15))
+    }
+    ToggleGradient.Rotation = 90
+    ToggleGradient.Parent = ToggleFrame
+    
+    local ToggleCorner = Instance.new("UICorner")
+    ToggleCorner.CornerRadius = UDim.new(0, 8)
+    ToggleCorner.Parent = ToggleFrame
+    
+    local ToggleLabel = Instance.new("TextLabel")
+    ToggleLabel.Parent = ToggleFrame
+    ToggleLabel.BackgroundTransparency = 1
+    ToggleLabel.Position = UDim2.new(0, 15, 0, 0)
+    ToggleLabel.Size = UDim2.new(0.6, 0, 1, 0)
+    ToggleLabel.Font = Enum.Font.Gotham
+    ToggleLabel.Text = name
+    ToggleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    ToggleLabel.TextSize = 14
+    ToggleLabel.TextXAlignment = Enum.TextXAlignment.Left
+    ToggleLabel.TextStrokeTransparency = 0.5
+    ToggleLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+    
+    local ToggleButton = Instance.new("TextButton")
+    ToggleButton.Parent = ToggleFrame
+    ToggleButton.AnchorPoint = Vector2.new(1, 0.5)
+    ToggleButton.BackgroundColor3 = defaultValue and Color3.fromRGB(200, 0, 0) or Color3.fromRGB(100, 20, 20)
+    ToggleButton.BorderSizePixel = 0
+    ToggleButton.Position = UDim2.new(1, -15, 0.5, 0)
+    ToggleButton.Size = UDim2.new(0, 60, 0, 28)
+    ToggleButton.Font = Enum.Font.GothamBold
+    ToggleButton.Text = defaultValue and "ON" or "OFF"
+    ToggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+    ToggleButton.TextSize = 12
+    ToggleButton.TextStrokeTransparency = 0
+    ToggleButton.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+    
+    local ButtonCorner = Instance.new("UICorner")
+    ButtonCorner.CornerRadius = UDim.new(0, 6)
+    ButtonCorner.Parent = ToggleButton
+    
+    local isToggled = defaultValue
+    
+    -- Touch-friendly button with animation
+    ToggleButton.MouseButton1Click:Connect(function()
+        isToggled = not isToggled
+        
+        -- Smooth animation
+        local newColor = isToggled and Color3.fromRGB(200, 0, 0) or Color3.fromRGB(100, 20, 20)
+        local tween = TweenService:Create(ToggleButton, 
+            TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+            {BackgroundColor3 = newColor}
+        )
+        
+        tween:Play()
+        
+        ToggleButton.Text = isToggled and "ON" or "OFF"
+        callback(isToggled)
+        
+        -- Button press effect
+        local pressEffect = TweenService:Create(ToggleButton,
+            TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+            {Size = UDim2.new(0, 58, 0, 26)}
+        )
+        pressEffect:Play()
+        pressEffect.Completed:Connect(function()
+            local returnEffect = TweenService:Create(ToggleButton,
+                TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+                {Size = UDim2.new(0, 60, 0, 28)}
+            )
+            returnEffect:Play()
+        end)
+    end)
+    
+    return ToggleButton
+end
+
+-- Speed boost functions
+local function EnableSpeedBoost()
+    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
+        if not speedBoostEnabled then
+            originalWalkSpeed = LocalPlayer.Character.Humanoid.WalkSpeed
+            speedBoostEnabled = true
+        end
+        LocalPlayer.Character.Humanoid.WalkSpeed = originalWalkSpeed * 2
+    end
+end
+
+local function DisableSpeedBoost()
+    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") and speedBoostEnabled then
+        LocalPlayer.Character.Humanoid.WalkSpeed = originalWalkSpeed
+        speedBoostEnabled = false
+    end
+end
+
+-- Warning notification
+local function ShowWarning(text)
+    local WarningGui = Instance.new("ScreenGui")
+    WarningGui.Name = "WarningGui"
+    WarningGui.Parent = LocalPlayer.PlayerGui
+    WarningGui.DisplayOrder = 1000
+    
+    local WarningFrame = Instance.new("Frame")
+    WarningFrame.Parent = WarningGui
+    WarningFrame.AnchorPoint = Vector2.new(0.5, 0)
+    WarningFrame.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
+    WarningFrame.BorderSizePixel = 0
+    WarningFrame.Position = UDim2.new(0.5, 0, 0, -50)
+    WarningFrame.Size = UDim2.new(0, 250, 0, 40)
+    
+    local WarningCorner = Instance.new("UICorner")
+    WarningCorner.CornerRadius = UDim.new(0, 8)
+    WarningCorner.Parent = WarningFrame
+    
+    local WarningLabel = Instance.new("TextLabel")
+    WarningLabel.Parent = WarningFrame
+    WarningLabel.BackgroundTransparency = 1
+    WarningLabel.Size = UDim2.new(1, 0, 1, 0)
+    WarningLabel.Font = Enum.Font.GothamBold
+    WarningLabel.Text = text
+    WarningLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    WarningLabel.TextSize = 14
+    WarningLabel.TextStrokeTransparency = 0
+    WarningLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+    
+    -- Animate in
+    local animateIn = TweenService:Create(WarningFrame,
+        TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
+        {Position = UDim2.new(0.5, 0, 0, 20)}
+    )
+    animateIn:Play()
+    
+    -- Auto-remove after 2 seconds
+    game:GetService("Debris"):AddItem(WarningGui, 2)
+    
+    wait(1.5)
+    local animateOut = TweenService:Create(WarningFrame,
+        TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.In),
+        {Position = UDim2.new(0.5, 0, 0, -50)}
+    )
+    animateOut:Play()
+end
+
+-- Enhanced ESP Creation Functions
+local function CreateESPBox(character)
+    local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+    if not humanoidRootPart then return end
+    
+    local ESPFolder = Instance.new("Folder")
+    ESPFolder.Name = "ESP_" .. character.Name
+    ESPFolder.Parent = character
+    
+    -- Enhanced Box ESP
+    local BoxHandles = Instance.new("BoxHandleAdornment")
+    BoxHandles.Name = "ESPBox"
+    BoxHandles.Parent = ESPFolder
+    BoxHandles.Adornee = humanoidRootPart
+    BoxHandles.Size = humanoidRootPart.Size + Vector3.new(1, 3, 1)
+    BoxHandles.Color3 = ESPSettings.BoxColor
+    BoxHandles.Transparency = 0.6
+    BoxHandles.AlwaysOnTop = true
+    BoxHandles.ZIndex = 2
+    
+    -- Enhanced Billboard
+    local BillboardGui = Instance.new("BillboardGui")
+    BillboardGui.Name = "ESPName"
+    BillboardGui.Parent = ESPFolder
+    BillboardGui.Adornee = humanoidRootPart
+    BillboardGui.Size = UDim2.new(0, 120, 0, 80)
+    BillboardGui.StudsOffset = Vector3.new(0, 4, 0)
+    BillboardGui.AlwaysOnTop = true
+    BillboardGui.LightInfluence = 0
+    
+    -- Name Label (no emoji)
+    local NameLabel = Instance.new("TextLabel")
+    NameLabel.Parent = BillboardGui
+    NameLabel.BackgroundTransparency = 1
+    NameLabel.Size = UDim2.new(1, 0, 0.4, 0)
+    NameLabel.Font = Enum.Font.GothamBold
+    NameLabel.TextColor3 = ESPSettings.NameColor
+    NameLabel.TextSize = 16
+    NameLabel.TextStrokeTransparency = 0
+    NameLabel.TextStrokeColor3 = Color3.new(0, 0, 0)
+    NameLabel.TextScaled = true
+    
+    -- Distance Label (no emoji)
+    local DistanceLabel = Instance.new("TextLabel")
+    DistanceLabel.Parent = BillboardGui
+    DistanceLabel.BackgroundTransparency = 1
+    DistanceLabel.Position = UDim2.new(0, 0, 0.4, 0)
+    DistanceLabel.Size = UDim2.new(1, 0, 0.3, 0)
+    DistanceLabel.Font = Enum.Font.Gotham
+    DistanceLabel.TextColor3 = ESPSettings.DistanceColor
+    DistanceLabel.TextSize = 14
+    DistanceLabel.TextStrokeTransparency = 0
+    DistanceLabel.TextStrokeColor3 = Color3.new(0, 0, 0)
+    DistanceLabel.TextScaled = true
+    
+    -- Health Label (no emoji)
+    local HealthLabel = Instance.new("TextLabel")
+    HealthLabel.Parent = BillboardGui
+    HealthLabel.BackgroundTransparency = 1
+    HealthLabel.Position = UDim2.new(0, 0, 0.7, 0)
+    HealthLabel.Size = UDim2.new(1, 0, 0.3, 0)
+    HealthLabel.Font = Enum.Font.GothamBold
+    HealthLabel.TextColor3 = ESPSettings.HealthColor
+    HealthLabel.TextSize = 14
+    HealthLabel.TextStrokeTransparency = 0
+    HealthLabel.TextStrokeColor3 = Color3.new(0, 0, 0)
+    HealthLabel.TextScaled = true
+    
+    -- Enhanced Tracer with smoother animation
+    local TracerLine = Drawing.new("Line")
+    TracerLine.Visible = false
+    TracerLine.Color = ESPSettings.TracerColor
+    TracerLine.Thickness = 2
+    TracerLine.Transparency = 0.8
+    
+    ESPObjects[character] = {
+        Folder = ESPFolder,
+        Box = BoxHandles,
+        Billboard = BillboardGui,
+        NameLabel = NameLabel,
+        DistanceLabel = DistanceLabel,
+        HealthLabel = HealthLabel,
+        Tracer = TracerLine
+    }
+    
+    return ESPObjects[character]
+end
+
+-- Check for NPCs in range
+local function CheckForNPCs()
+    if not LocalPlayer.Character or not LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then return end
+    
+    local playerPosition = LocalPlayer.Character.HumanoidRootPart.Position
+    local foundNPC = false
+    
+    for _, obj in pairs(workspace:GetDescendants()) do
+        if obj:IsA("Model") and obj:FindFirstChild("Humanoid") and obj:FindFirstChild("HumanoidRootPart") then
+            -- Check if it's not a player character
+            local isPlayerCharacter = false
+            for _, player in pairs(Players:GetPlayers()) do
+                if player.Character == obj then
+                    isPlayerCharacter = true
+                    break
+                end
+            end
+            
+            if not isPlayerCharacter then
+                local distance = (obj.HumanoidRootPart.Position - playerPosition).Magnitude
+                if distance >= 1 and distance <= 20 then
+                    foundNPC = true
+                    break
+                end
+            end
+        end
+    end
+    
+    if foundNPC and not speedBoostEnabled then
+        ShowWarning("NPC Detected! Speed Boost Activated")
+        EnableSpeedBoost()
+    elseif not foundNPC and speedBoostEnabled then
+        DisableSpeedBoost()
+    end
+end
+
+-- Update ESP with enhanced visibility
+local function UpdateESP(character, espObj)
+    if not character or not character.Parent then return end
+    
+    local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+    local humanoid = character:FindFirstChild("Humanoid")
+    
+    if not humanoidRootPart or not humanoid then return end
+    
+    local player = Players:GetPlayerFromCharacter(character)
+    local distance = (humanoidRootPart.Position - LocalPlayer.Character.HumanoidRootPart.Position).Magnitude
+    
+    -- Check distance limit
+    if distance > ESPSettings.MaxDistance then
+        espObj.Folder.Parent = nil
+        espObj.Tracer.Visible = false
+        return
+    end
+    
+    -- Check team
+    if ESPSettings.TeamCheck and player and player.Team == LocalPlayer.Team then
+        espObj.Folder.Parent = nil
+        espObj.Tracer.Visible = false
+        return
+    end
+    
+    espObj.Folder.Parent = character
+    
+    -- Update visibility based on settings
+    espObj.Box.Visible = ESPSettings.ShowBoxes
+    espObj.Billboard.Enabled = ESPSettings.ShowNames or ESPSettings.ShowDistance or ESPSettings.ShowHealth
+    
+    -- Update text (no emoji)
+    if ESPSettings.ShowNames then
+        local displayName = player and player.DisplayName or character.Name
+        espObj.NameLabel.Text = displayName
+        espObj.NameLabel.Visible = true
+    else
+        espObj.NameLabel.Visible = false
+    end
+    
+    if ESPSettings.ShowDistance then
+        espObj.DistanceLabel.Text = math.floor(distance) .. "m"
+        espObj.DistanceLabel.Visible = true
+    else
+        espObj.DistanceLabel.Visible = false
+    end
+    
+    if ESPSettings.ShowHealth then
+        local healthPercent = math.floor((humanoid.Health / humanoid.MaxHealth) * 100)
+        espObj.HealthLabel.Text = healthPercent .. "%"
+        -- Dynamic health color
+        if healthPercent > 75 then
+            espObj.HealthLabel.TextColor3 = Color3.fromRGB(0, 255, 0)
+        elseif healthPercent > 50 then
+            espObj.HealthLabel.TextColor3 = Color3.fromRGB(255, 255, 0)
+        elseif healthPercent > 25 then
+            espObj.HealthLabel.TextColor3 = Color3.fromRGB(255, 150, 0)
+        else
+            espObj.HealthLabel.TextColor3 = Color3.fromRGB(255, 0, 0)
+        end
+        espObj.HealthLabel.Visible = true
+    else
+        espObj.HealthLabel.Visible = false
+    end
+    
+    -- Enhanced tracer with smoother movement
+    if ESPSettings.ShowTracers then
+        local screenPos, onScreen = Camera:WorldToScreenPoint(humanoidRootPart.Position)
+        if onScreen then
+            espObj.Tracer.From = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y)
+            espObj.Tracer.To = Vector2.new(screenPos.X, screenPos.Y)
+            espObj.Tracer.Visible = true
+        else
+            espObj.Tracer.Visible = false
+        end
+    else
+        espObj.Tracer.Visible = false
+    end
+end
+
+-- Remove ESP
+local function RemoveESP(character)
+    if ESPObjects[character] then
+        if ESPObjects[character].Folder then
+            ESPObjects[character].Folder:Destroy()
+        end
+        if ESPObjects[character].Tracer then
+            ESPObjects[character].Tracer:Remove()
+        end
+        ESPObjects[character] = nil
+    end
+end
+
+-- Add ESP to character
+local function AddESP(character)
+    if character == LocalPlayer.Character then return end
+    if not character:FindFirstChild("Humanoid") then return end
+    if ESPObjects[character] then return end
+    
+    CreateESPBox(character)
+end
+
+-- Scan for existing characters
+local function ScanWorkspace()
+    for _, obj in pairs(workspace:GetDescendants()) do
+        if obj:IsA("Model") and obj:FindFirstChild("Humanoid") and obj:FindFirstChild("HumanoidRootPart") then
+            if obj ~= LocalPlayer.Character then
+                AddESP(obj)
+            end
+        end
+    end
+end
+
+-- Setup Enhanced UI Toggles (no emoji)
+CreateToggle("ESP เปิด/ปิด", ESPSettings.Enabled, function(value)
+    ESPSettings.Enabled = value
+    if not value then
+        for character, _ in pairs(ESPObjects) do
+            RemoveESP(character)
+        end
+        DisableSpeedBoost()
+    else
+        ScanWorkspace()
+    end
+end)
+
+CreateToggle("แสดงชื่อ", ESPSettings.ShowNames, function(value)
+    ESPSettings.ShowNames = value
+end)
+
+CreateToggle("แสดงระยะทาง", ESPSettings.ShowDistance, function(value)
+    ESPSettings.ShowDistance = value
+end)
+
+CreateToggle("แสดงเลือด", ESPSettings.ShowHealth, function(value)
+    ESPSettings.ShowHealth = value
+end)
+
+CreateToggle("แสดงกรอบ", ESPSettings.ShowBoxes, function(value)
+    ESPSettings.ShowBoxes = value
+end)
+
+CreateToggle("แสดงเส้น", ESPSettings.ShowTracers, function(value)
+    ESPSettings.ShowTracers = value
+end)
+
+CreateToggle("เช็คทีม", ESPSettings.TeamCheck, function(value)
+    ESPSettings.TeamCheck = value
+end)
+
+-- Enhanced Close and Minimize buttons
+local ButtonFrame = Instance.new("Frame")
+ButtonFrame.Name = "ButtonFrame"
+ButtonFrame.Parent = MainFrame
+ButtonFrame.BackgroundTransparency = 1
+ButtonFrame.AnchorPoint = Vector2.new(1, 0)
+ButtonFrame.Position = UDim2.new(1, -10, 0, 10)
+ButtonFrame.Size = UDim2.new(0, 80, 0, 40)
+
+local ButtonLayout = Instance.new("UIListLayout")
+ButtonLayout.Parent = ButtonFrame
+ButtonLayout.FillDirection = Enum.FillDirection.Horizontal
+ButtonLayout.Padding = UDim.new(0, 5)
+ButtonLayout.SortOrder = Enum.SortOrder.LayoutOrder
+
+-- Minimize Button
+local MinimizeButton = Instance.new("TextButton")
+MinimizeButton.Name = "MinimizeButton"
+MinimizeButton.Parent = ButtonFrame
+MinimizeButton.BackgroundColor3 = Color3.fromRGB(150, 50, 50)
+MinimizeButton.BorderSizePixel = 0
+MinimizeButton.Size = UDim2.new(0, 35, 0, 35)
+MinimizeButton.Font = Enum.Font.GothamBold
+MinimizeButton.Text = "-"
+MinimizeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+MinimizeButton.TextSize = 16
+MinimizeButton.TextStrokeTransparency = 0
+MinimizeButton.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+
+local MinimizeCorner = Instance.new("UICorner")
+MinimizeCorner.CornerRadius = UDim.new(0, 8)
+MinimizeCorner.Parent = MinimizeButton
+
+-- Close Button
+local CloseButton = Instance.new("TextButton")
+CloseButton.Name = "CloseButton"
+CloseButton.Parent = ButtonFrame
+CloseButton.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+CloseButton.BorderSizePixel = 0
+CloseButton.Size = UDim2.new(0, 35, 0, 35)
+CloseButton.Font = Enum.Font.GothamBold
+CloseButton.Text = "X"
+CloseButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+CloseButton.TextSize = 16
+CloseButton.TextStrokeTransparency = 0
+CloseButton.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+
+local CloseCorner = Instance.new("UICorner")
+CloseCorner.CornerRadius = UDim.new(0, 8)
+CloseCorner.Parent = CloseButton
+
+-- Enhanced Mobile-Friendly Dragging with smoother movement
+local dragging = false
+local dragStart = nil
+local startPos = nil
+local dragConnection = nil
+
+local function StartDrag(input)
+    dragging = true
+    dragStart = input.Position
+    startPos = MainFrame.Position
+    
+    -- Visual feedback
+    local dragTween = TweenService:Create(MainFrame,
+        TweenInfo.new(0.1, Enum.EasingStyle.Quad),
+        {BackgroundTransparency = 0.1}
+    )
+    dragTween:Play()
+    
+    -- Smooth drag connection
+    dragConnection = UserInputService.InputChanged:Connect(function(moveInput)
+        if moveInput.UserInputType == Enum.UserInputType.MouseMovement or 
+           moveInput.UserInputType == Enum.UserInputType.Touch then
+            if dragging then
+                local delta = moveInput.Position - dragStart
+                local newX = math.max(0, math.min(startPos.X.Offset + delta.X, Camera.ViewportSize.X - MainFrame.AbsoluteSize.X))
+                local newY = math.max(0, math.min(startPos.Y.Offset + delta.Y, Camera.ViewportSize.Y - MainFrame.AbsoluteSize.Y))
+                
+                -- Smooth interpolation for fluid movement
+                local targetPos = UDim2.new(0, newX, 0, newY)
+                local smoothTween = TweenService:Create(MainFrame,
+                    TweenInfo.new(0.05, Enum.EasingStyle.Linear),
+                    {Position = targetPos}
+                )
+                smoothTween:Play()
+                
+                -- Update shadow position smoothly
+                local shadowTween = TweenService:Create(Shadow,
+                    TweenInfo.new(0.05, Enum.EasingStyle.Linear),
+                    {Position = UDim2.new(0, newX + 5, 0, newY + 5)}
+                )
+                shadowTween:Play()
+            end
+        end
+    end)
+end
+
+local function EndDrag()
+    if dragging then
+        dragging = false
+        if dragConnection then
+            dragConnection:Disconnect()
+            dragConnection = nil
+        end
+        local endTween = TweenService:Create(MainFrame,
+            TweenInfo.new(0.2, Enum.EasingStyle.Quad),
+            {BackgroundTransparency = 0}
+        )
+        endTween:Play()
+    end
+end
+
+-- Mouse events
+MainFrame.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        StartDrag(input)
+    end
+end)
+
+-- Touch events for mobile
+MainFrame.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.Touch then
+        StartDrag(input)
+    end
+end)
+
+UserInputService.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or
+       input.UserInputType == Enum.UserInputType.Touch then
+        EndDrag()
+    end
+end)
+
+-- Button functionality with animations
+CloseButton.MouseButton1Click:Connect(function()
+    local closeTween = TweenService:Create(MainFrame,
+        TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.In),
+        {Size = UDim2.new(0, 0, 0, 0), BackgroundTransparency = 1}
+    )
+    closeTween:Play()
+    
+    closeTween.Completed:Connect(function()
+        ScreenGui:Destroy()
+        for character, _ in pairs(ESPObjects) do
+            RemoveESP(character)
+        end
+        DisableSpeedBoost()
+    end)
+end)
+
+local minimized = false
+MinimizeButton.MouseButton1Click:Connect(function()
+    minimized = not minimized
+    
+    local targetSize = minimized and UDim2.new(0, 320, 0, 70) or UDim2.new(0, 320, 0, 450)
+    local sizeTween = TweenService:Create(MainFrame,
+        TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+        {Size = targetSize}
+    )
+    
+    local shadowTween = TweenService:Create(Shadow,
+        TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+        {Size = targetSize}
+    )
+    
+    sizeTween:Play()
+    shadowTween:Play()
+    
+    ScrollFrame.Visible = not minimized
+    MinimizeButton.Text = minimized and "+" or "-"
+end)
+
+-- Keyboard toggle (Insert key)
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed then return end
+    if input.KeyCode == Enum.KeyCode.Insert then
+        ScreenGui.Enabled = not ScreenGui.Enabled
+    end
+end)
+
+-- Event Connections
+local connections = {}
+
+-- Player events
+connections.playerAdded = Players.PlayerAdded:Connect(function(player)
+    player.CharacterAdded:Connect(function(character)
+        if ESPSettings.Enabled then
+            character:WaitForChild("HumanoidRootPart")
+            AddESP(character)
+        end
+    end)
+end)
+
+connections.playerRemoving = Players.PlayerRemoving:Connect(function(player)
+    if player.Character and ESPObjects[player.Character] then
+        RemoveESP(player.Character)
+    end
+end)
+
+-- Character removing
+connections.characterRemoving = LocalPlayer.CharacterRemoving:Connect(function(character)
+    for char, _ in pairs(ESPObjects) do
+        RemoveESP(char)
+    end
+    DisableSpeedBoost()
+end)
+
+-- Workspace scanning for NPCs
+connections.descendantAdded = workspace.DescendantAdded:Connect(function(descendant)
+    if ESPSettings.Enabled and descendant:IsA("Model") and descendant:FindFirstChild("Humanoid") then
+        wait(0.1) -- Wait for character to fully load
+        if descendant:FindFirstChild("HumanoidRootPart") then
+            AddESP(descendant)
+        end
+    end
+end)
+
+connections.descendantRemoving = workspace.DescendantRemoving:Connect(function(descendant)
+    if descendant:IsA("Model") and ESPObjects[descendant] then
+        RemoveESP(descendant)
+    end
+end)
+
+-- Enhanced update loop with RGB colors and NPC detection
+local updateTimer = 0
+local npcCheckTimer = 0
+connections.heartbeat = RunService.Heartbeat:Connect(function(deltaTime)
+    updateTimer = updateTimer + deltaTime
+    npcCheckTimer = npcCheckTimer + deltaTime
+    rgbTime = rgbTime + deltaTime
+    
+    -- Update RGB colors for UI
+    AccentBorder.BackgroundColor3 = getRGBColor(0)
+    ScrollFrame.ScrollBarImageColor3 = getRGBColor(1)
+    
+    -- Check for NPCs every 0.2 seconds
+    if npcCheckTimer >= 0.2 then
+        npcCheckTimer = 0
+        if ESPSettings.Enabled then
+            CheckForNPCs()
+        end
+    end
+    
+    -- Update ESP every 0.05 seconds for smoother tracers
+    if updateTimer >= 0.05 then
+        updateTimer = 0
+        
+        if not ESPSettings.Enabled then return end
+        if not LocalPlayer.Character or not LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then return end
+        
+        for character, espObj in pairs(ESPObjects) do
+            if character and character.Parent then
+                UpdateESP(character, espObj)
+            else
+                RemoveESP(character)
+            end
+        end
+    end
+end)
+
+-- Initial setup
+if ESPSettings.Enabled then
+    ScanWorkspace()
+    
+    -- Scan for existing players
+    for _, player in pairs(Players:GetPlayers()) do
+        if player.Character and player ~= LocalPlayer then
+            AddESP(player.Character)
+        end
+    end
+end
+
+-- Character spawn handler for speed reset
+LocalPlayer.CharacterAdded:Connect(function(character)
+    wait(1)
+    if character:FindFirstChild("Humanoid") then
+        originalWalkSpeed = character.Humanoid.WalkSpeed
+        speedBoostEnabled = false
+    end
+end)
+
+-- Cleanup function
+ScreenGui.AncestryChanged:Connect(function()
+    if not ScreenGui.Parent then
+        -- Clean up when GUI is destroyed
+        for character, _ in pairs(ESPObjects) do
+            RemoveESP(character)
+        end
+        
+        DisableSpeedBoost()
+        
+        for _, connection in pairs(connections) do
+            if connection then
+                connection:Disconnect()
+            end
+        end
+    end
+end)
+
+-- Startup animation
+MainFrame.Size = UDim2.new(0, 0, 0, 0)
+MainFrame.BackgroundTransparency = 1
+
+local startupTween = TweenService:Create(MainFrame,
+    TweenInfo.new(0.6, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
+    {Size = UDim2.new(0, 320, 0, 450), BackgroundTransparency = 0}
+)
+
+wait(0.2)
+startupTween:Play()
+
+print("Enhanced Mobile ESP Script loaded successfully!")
+print("Optimized for mobile devices with touch support")
+print("Press INSERT to toggle GUI visibility")
+print("Features: Red theme, RGB UI, NPC detection with speed boost")
