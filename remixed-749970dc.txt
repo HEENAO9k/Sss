@@ -1,0 +1,527 @@
+-- Humanoid ESP Script for Fluxus
+-- Created for educational purposes
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
+
+local LocalPlayer = Players.LocalPlayer
+local Camera = workspace.CurrentCamera
+
+-- ESP Settings
+local ESPSettings = {
+    Enabled = false,
+    ShowNames = true,
+    ShowDistance = true,
+    ShowHealth = true,
+    ShowBoxes = true,
+    ShowTracers = false,
+    TeamCheck = false,
+    MaxDistance = 1000,
+    BoxColor = Color3.fromRGB(255, 255, 255),
+    NameColor = Color3.fromRGB(255, 255, 255),
+    HealthColor = Color3.fromRGB(0, 255, 0),
+    TracerColor = Color3.fromRGB(255, 0, 0)
+}
+
+-- Storage for ESP objects
+local ESPObjects = {}
+
+-- Create GUI
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "ESPGui"
+ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+ScreenGui.ResetOnSpawn = false
+
+-- Main Frame
+local MainFrame = Instance.new("Frame")
+MainFrame.Name = "MainFrame"
+MainFrame.Parent = ScreenGui
+MainFrame.AnchorPoint = Vector2.new(0, 0)
+MainFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+MainFrame.BorderSizePixel = 0
+MainFrame.Position = UDim2.new(0, 20, 0, 20)
+MainFrame.Size = UDim2.new(0, 300, 0, 400)
+
+-- Add corner radius
+local MainCorner = Instance.new("UICorner")
+MainCorner.CornerRadius = UDim.new(0, 10)
+MainCorner.Parent = MainFrame
+
+-- Title
+local TitleLabel = Instance.new("TextLabel")
+TitleLabel.Name = "TitleLabel"
+TitleLabel.Parent = MainFrame
+TitleLabel.BackgroundTransparency = 1
+TitleLabel.Position = UDim2.new(0, 0, 0, 0)
+TitleLabel.Size = UDim2.new(1, 0, 0, 40)
+TitleLabel.Font = Enum.Font.SourceSansBold
+TitleLabel.Text = "ESP Control Panel"
+TitleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+TitleLabel.TextSize = 18
+
+-- Scroll Frame for options
+local ScrollFrame = Instance.new("ScrollingFrame")
+ScrollFrame.Name = "ScrollFrame"
+ScrollFrame.Parent = MainFrame
+ScrollFrame.BackgroundTransparency = 1
+ScrollFrame.Position = UDim2.new(0, 10, 0, 50)
+ScrollFrame.Size = UDim2.new(1, -20, 1, -60)
+ScrollFrame.ScrollBarThickness = 6
+ScrollFrame.CanvasSize = UDim2.new(0, 0, 0, 350)
+
+-- UI Layout
+local UIListLayout = Instance.new("UIListLayout")
+UIListLayout.Parent = ScrollFrame
+UIListLayout.Padding = UDim.new(0, 10)
+UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+
+-- Function to create toggle button
+local function CreateToggle(name, defaultValue, callback)
+    local ToggleFrame = Instance.new("Frame")
+    ToggleFrame.Name = name .. "Toggle"
+    ToggleFrame.Parent = ScrollFrame
+    ToggleFrame.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+    ToggleFrame.BorderSizePixel = 0
+    ToggleFrame.Size = UDim2.new(1, 0, 0, 35)
+    
+    local ToggleCorner = Instance.new("UICorner")
+    ToggleCorner.CornerRadius = UDim.new(0, 5)
+    ToggleCorner.Parent = ToggleFrame
+    
+    local ToggleLabel = Instance.new("TextLabel")
+    ToggleLabel.Parent = ToggleFrame
+    ToggleLabel.BackgroundTransparency = 1
+    ToggleLabel.Position = UDim2.new(0, 10, 0, 0)
+    ToggleLabel.Size = UDim2.new(0.7, 0, 1, 0)
+    ToggleLabel.Font = Enum.Font.SourceSans
+    ToggleLabel.Text = name
+    ToggleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    ToggleLabel.TextSize = 14
+    ToggleLabel.TextXAlignment = Enum.TextXAlignment.Left
+    
+    local ToggleButton = Instance.new("TextButton")
+    ToggleButton.Parent = ToggleFrame
+    ToggleButton.AnchorPoint = Vector2.new(1, 0.5)
+    ToggleButton.BackgroundColor3 = defaultValue and Color3.fromRGB(0, 150, 0) or Color3.fromRGB(150, 0, 0)
+    ToggleButton.BorderSizePixel = 0
+    ToggleButton.Position = UDim2.new(1, -10, 0.5, 0)
+    ToggleButton.Size = UDim2.new(0, 50, 0, 20)
+    ToggleButton.Font = Enum.Font.SourceSans
+    ToggleButton.Text = defaultValue and "ON" or "OFF"
+    ToggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+    ToggleButton.TextSize = 12
+    
+    local ButtonCorner = Instance.new("UICorner")
+    ButtonCorner.CornerRadius = UDim.new(0, 3)
+    ButtonCorner.Parent = ToggleButton
+    
+    local isToggled = defaultValue
+    
+    ToggleButton.MouseButton1Click:Connect(function()
+        isToggled = not isToggled
+        ToggleButton.Text = isToggled and "ON" or "OFF"
+        ToggleButton.BackgroundColor3 = isToggled and Color3.fromRGB(0, 150, 0) or Color3.fromRGB(150, 0, 0)
+        callback(isToggled)
+    end)
+    
+    return ToggleButton
+end
+
+-- Create ESP Functions
+local function CreateESPBox(character)
+    local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+    if not humanoidRootPart then return end
+    
+    local ESPFolder = Instance.new("Folder")
+    ESPFolder.Name = "ESP_" .. character.Name
+    ESPFolder.Parent = character
+    
+    -- Box ESP
+    local BoxHandles = Instance.new("BoxHandleAdornment")
+    BoxHandles.Name = "ESPBox"
+    BoxHandles.Parent = ESPFolder
+    BoxHandles.Adornee = humanoidRootPart
+    BoxHandles.Size = humanoidRootPart.Size + Vector3.new(1, 3, 1)
+    BoxHandles.Color3 = ESPSettings.BoxColor
+    BoxHandles.Transparency = 0.8
+    BoxHandles.AlwaysOnTop = true
+    BoxHandles.ZIndex = 1
+    
+    -- Name ESP
+    local BillboardGui = Instance.new("BillboardGui")
+    BillboardGui.Name = "ESPName"
+    BillboardGui.Parent = ESPFolder
+    BillboardGui.Adornee = humanoidRootPart
+    BillboardGui.Size = UDim2.new(0, 100, 0, 50)
+    BillboardGui.StudsOffset = Vector3.new(0, 3, 0)
+    BillboardGui.AlwaysOnTop = true
+    
+    local NameLabel = Instance.new("TextLabel")
+    NameLabel.Parent = BillboardGui
+    NameLabel.BackgroundTransparency = 1
+    NameLabel.Size = UDim2.new(1, 0, 0.5, 0)
+    NameLabel.Font = Enum.Font.SourceSansBold
+    NameLabel.TextColor3 = ESPSettings.NameColor
+    NameLabel.TextSize = 14
+    NameLabel.TextStrokeTransparency = 0
+    NameLabel.TextStrokeColor3 = Color3.new(0, 0, 0)
+    
+    -- Distance Label
+    local DistanceLabel = Instance.new("TextLabel")
+    DistanceLabel.Parent = BillboardGui
+    DistanceLabel.BackgroundTransparency = 1
+    DistanceLabel.Position = UDim2.new(0, 0, 0.5, 0)
+    DistanceLabel.Size = UDim2.new(1, 0, 0.25, 0)
+    DistanceLabel.Font = Enum.Font.SourceSans
+    DistanceLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+    DistanceLabel.TextSize = 12
+    DistanceLabel.TextStrokeTransparency = 0
+    DistanceLabel.TextStrokeColor3 = Color3.new(0, 0, 0)
+    
+    -- Health Label
+    local HealthLabel = Instance.new("TextLabel")
+    HealthLabel.Parent = BillboardGui
+    HealthLabel.BackgroundTransparency = 1
+    HealthLabel.Position = UDim2.new(0, 0, 0.75, 0)
+    HealthLabel.Size = UDim2.new(1, 0, 0.25, 0)
+    HealthLabel.Font = Enum.Font.SourceSans
+    HealthLabel.TextColor3 = ESPSettings.HealthColor
+    HealthLabel.TextSize = 12
+    HealthLabel.TextStrokeTransparency = 0
+    HealthLabel.TextStrokeColor3 = Color3.new(0, 0, 0)
+    
+    -- Tracer
+    local TracerLine = Drawing.new("Line")
+    TracerLine.Visible = false
+    TracerLine.Color = ESPSettings.TracerColor
+    TracerLine.Thickness = 2
+    TracerLine.Transparency = 0.8
+    
+    ESPObjects[character] = {
+        Folder = ESPFolder,
+        Box = BoxHandles,
+        Billboard = BillboardGui,
+        NameLabel = NameLabel,
+        DistanceLabel = DistanceLabel,
+        HealthLabel = HealthLabel,
+        Tracer = TracerLine
+    }
+    
+    return ESPObjects[character]
+end
+
+-- Update ESP
+local function UpdateESP(character, espObj)
+    if not character or not character.Parent then return end
+    
+    local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+    local humanoid = character:FindFirstChild("Humanoid")
+    
+    if not humanoidRootPart or not humanoid then return end
+    
+    local player = Players:GetPlayerFromCharacter(character)
+    local distance = (humanoidRootPart.Position - LocalPlayer.Character.HumanoidRootPart.Position).Magnitude
+    
+    -- Check distance limit
+    if distance > ESPSettings.MaxDistance then
+        espObj.Folder.Parent = nil
+        espObj.Tracer.Visible = false
+        return
+    end
+    
+    -- Check team
+    if ESPSettings.TeamCheck and player and player.Team == LocalPlayer.Team then
+        espObj.Folder.Parent = nil
+        espObj.Tracer.Visible = false
+        return
+    end
+    
+    espObj.Folder.Parent = character
+    
+    -- Update visibility based on settings
+    espObj.Box.Visible = ESPSettings.ShowBoxes
+    espObj.Billboard.Enabled = ESPSettings.ShowNames or ESPSettings.ShowDistance or ESPSettings.ShowHealth
+    
+    -- Update text
+    if ESPSettings.ShowNames then
+        espObj.NameLabel.Text = player and player.Name or character.Name
+        espObj.NameLabel.Visible = true
+    else
+        espObj.NameLabel.Visible = false
+    end
+    
+    if ESPSettings.ShowDistance then
+        espObj.DistanceLabel.Text = math.floor(distance) .. " studs"
+        espObj.DistanceLabel.Visible = true
+    else
+        espObj.DistanceLabel.Visible = false
+    end
+    
+    if ESPSettings.ShowHealth then
+        local healthPercent = math.floor((humanoid.Health / humanoid.MaxHealth) * 100)
+        espObj.HealthLabel.Text = healthPercent .. "%"
+        espObj.HealthLabel.TextColor3 = Color3.new(1 - (healthPercent/100), healthPercent/100, 0)
+        espObj.HealthLabel.Visible = true
+    else
+        espObj.HealthLabel.Visible = false
+    end
+    
+    -- Update tracer
+    if ESPSettings.ShowTracers then
+        local screenPos, onScreen = Camera:WorldToScreenPoint(humanoidRootPart.Position)
+        if onScreen then
+            espObj.Tracer.From = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y)
+            espObj.Tracer.To = Vector2.new(screenPos.X, screenPos.Y)
+            espObj.Tracer.Visible = true
+        else
+            espObj.Tracer.Visible = false
+        end
+    else
+        espObj.Tracer.Visible = false
+    end
+end
+
+-- Remove ESP
+local function RemoveESP(character)
+    if ESPObjects[character] then
+        if ESPObjects[character].Folder then
+            ESPObjects[character].Folder:Destroy()
+        end
+        if ESPObjects[character].Tracer then
+            ESPObjects[character].Tracer:Remove()
+        end
+        ESPObjects[character] = nil
+    end
+end
+
+-- Add ESP to character
+local function AddESP(character)
+    if character == LocalPlayer.Character then return end
+    if not character:FindFirstChild("Humanoid") then return end
+    if ESPObjects[character] then return end
+    
+    CreateESPBox(character)
+end
+
+-- Scan for existing characters
+local function ScanWorkspace()
+    for _, obj in pairs(workspace:GetDescendants()) do
+        if obj:IsA("Model") and obj:FindFirstChild("Humanoid") and obj:FindFirstChild("HumanoidRootPart") then
+            if obj ~= LocalPlayer.Character then
+                AddESP(obj)
+            end
+        end
+    end
+end
+
+-- Setup UI Toggles
+CreateToggle("ESP Enabled", ESPSettings.Enabled, function(value)
+    ESPSettings.Enabled = value
+    if not value then
+        for character, _ in pairs(ESPObjects) do
+            RemoveESP(character)
+        end
+    else
+        ScanWorkspace()
+    end
+end)
+
+CreateToggle("Show Names", ESPSettings.ShowNames, function(value)
+    ESPSettings.ShowNames = value
+end)
+
+CreateToggle("Show Distance", ESPSettings.ShowDistance, function(value)
+    ESPSettings.ShowDistance = value
+end)
+
+CreateToggle("Show Health", ESPSettings.ShowHealth, function(value)
+    ESPSettings.ShowHealth = value
+end)
+
+CreateToggle("Show Boxes", ESPSettings.ShowBoxes, function(value)
+    ESPSettings.ShowBoxes = value
+end)
+
+CreateToggle("Show Tracers", ESPSettings.ShowTracers, function(value)
+    ESPSettings.ShowTracers = value
+end)
+
+CreateToggle("Team Check", ESPSettings.TeamCheck, function(value)
+    ESPSettings.TeamCheck = value
+end)
+
+-- Close Button
+local CloseButton = Instance.new("TextButton")
+CloseButton.Name = "CloseButton"
+CloseButton.Parent = MainFrame
+CloseButton.AnchorPoint = Vector2.new(1, 0)
+CloseButton.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
+CloseButton.BorderSizePixel = 0
+CloseButton.Position = UDim2.new(1, -5, 0, 5)
+CloseButton.Size = UDim2.new(0, 30, 0, 30)
+CloseButton.Font = Enum.Font.SourceSansBold
+CloseButton.Text = "X"
+CloseButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+CloseButton.TextSize = 14
+
+local CloseCorner = Instance.new("UICorner")
+CloseCorner.CornerRadius = UDim.new(0, 5)
+CloseCorner.Parent = CloseButton
+
+-- Minimize Button
+local MinimizeButton = Instance.new("TextButton")
+MinimizeButton.Name = "MinimizeButton"
+MinimizeButton.Parent = MainFrame
+MinimizeButton.AnchorPoint = Vector2.new(1, 0)
+MinimizeButton.BackgroundColor3 = Color3.fromRGB(100, 100, 100)
+MinimizeButton.BorderSizePixel = 0
+MinimizeButton.Position = UDim2.new(1, -40, 0, 5)
+MinimizeButton.Size = UDim2.new(0, 30, 0, 30)
+MinimizeButton.Font = Enum.Font.SourceSansBold
+MinimizeButton.Text = "-"
+MinimizeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+MinimizeButton.TextSize = 14
+
+local MinimizeCorner = Instance.new("UICorner")
+MinimizeCorner.CornerRadius = UDim.new(0, 5)
+MinimizeCorner.Parent = MinimizeButton
+
+-- GUI Dragging
+local dragging = false
+local dragStart = nil
+local startPos = nil
+
+MainFrame.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = true
+        dragStart = input.Position
+        startPos = MainFrame.Position
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+        local delta = input.Position - dragStart
+        MainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+    end
+end)
+
+UserInputService.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = false
+    end
+end)
+
+-- Close and Minimize functionality
+CloseButton.MouseButton1Click:Connect(function()
+    ScreenGui:Destroy()
+    for character, _ in pairs(ESPObjects) do
+        RemoveESP(character)
+    end
+end)
+
+local minimized = false
+MinimizeButton.MouseButton1Click:Connect(function()
+    minimized = not minimized
+    ScrollFrame.Visible = not minimized
+    MainFrame.Size = minimized and UDim2.new(0, 300, 0, 40) or UDim2.new(0, 300, 0, 400)
+    MinimizeButton.Text = minimized and "+" or "-"
+end)
+
+-- Keyboard toggle (Insert key)
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed then return end
+    if input.KeyCode == Enum.KeyCode.Insert then
+        ScreenGui.Enabled = not ScreenGui.Enabled
+    end
+end)
+
+-- Event Connections
+local connections = {}
+
+-- Player added
+connections.playerAdded = Players.PlayerAdded:Connect(function(player)
+    player.CharacterAdded:Connect(function(character)
+        if ESPSettings.Enabled then
+            character:WaitForChild("HumanoidRootPart")
+            AddESP(character)
+        end
+    end)
+end)
+
+-- Player removing
+connections.playerRemoving = Players.PlayerRemoving:Connect(function(player)
+    if player.Character and ESPObjects[player.Character] then
+        RemoveESP(player.Character)
+    end
+end)
+
+-- Character removing
+connections.characterRemoving = LocalPlayer.CharacterRemoving:Connect(function(character)
+    for char, _ in pairs(ESPObjects) do
+        RemoveESP(char)
+    end
+end)
+
+-- Workspace scanning for NPCs
+connections.descendantAdded = workspace.DescendantAdded:Connect(function(descendant)
+    if ESPSettings.Enabled and descendant:IsA("Model") and descendant:FindFirstChild("Humanoid") then
+        wait(0.1) -- Wait for character to fully load
+        if descendant:FindFirstChild("HumanoidRootPart") then
+            AddESP(descendant)
+        end
+    end
+end)
+
+connections.descendantRemoving = workspace.DescendantRemoving:Connect(function(descendant)
+    if descendant:IsA("Model") and ESPObjects[descendant] then
+        RemoveESP(descendant)
+    end
+end)
+
+-- Main update loop
+connections.heartbeat = RunService.Heartbeat:Connect(function()
+    if not ESPSettings.Enabled then return end
+    if not LocalPlayer.Character or not LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then return end
+    
+    for character, espObj in pairs(ESPObjects) do
+        if character and character.Parent then
+            UpdateESP(character, espObj)
+        else
+            RemoveESP(character)
+        end
+    end
+end)
+
+-- Initial scan
+if ESPSettings.Enabled then
+    ScanWorkspace()
+    
+    -- Scan for existing players
+    for _, player in pairs(Players:GetPlayers()) do
+        if player.Character and player ~= LocalPlayer then
+            AddESP(player.Character)
+        end
+    end
+end
+
+-- Cleanup function
+ScreenGui.AncestryChanged:Connect(function()
+    if not ScreenGui.Parent then
+        -- Clean up when GUI is destroyed
+        for character, _ in pairs(ESPObjects) do
+            RemoveESP(character)
+        end
+        
+        for _, connection in pairs(connections) do
+            if connection then
+                connection:Disconnect()
+            end
+        end
+    end
+end)
+
+print("ESP Script loaded successfully!")
+print("Press INSERT to toggle GUI visibility")
