@@ -1,0 +1,1849 @@
+
+-- Enhanced ESP Script for Roblox Mimic
+-- Includes Mimic-specific features: monsters, items, doors, hiding spots, objectives
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
+local Lighting = game:GetService("Lighting")
+local SoundService = game:GetService("SoundService")
+
+local LocalPlayer = Players.LocalPlayer
+local Camera = workspace.CurrentCamera
+
+-- RGB Color Animation
+local rainbowTime = 0
+local function getRainbowColor(offset)
+    offset = offset or 0
+    return Color3.fromHSV((rainbowTime + offset) % 1, 1, 1)
+end
+
+-- Enhanced ESP Settings for Mimic
+local ESPSettings = {
+    Enabled = false,
+    ShowNames = true,
+    ShowDistance = true,
+    ShowHealth = true,
+    ShowBoxes = true,
+    ShowTracers = false,
+    TeamCheck = false,
+    MaxDistance = 1000,
+    -- Player ESP Colors
+    BoxColor = Color3.fromRGB(0, 255, 255),
+    NameColor = Color3.fromRGB(255, 255, 255),
+    DistanceColor = Color3.fromRGB(255, 200, 0),
+    HealthColor = Color3.fromRGB(0, 255, 0),
+    TracerColor = Color3.fromRGB(255, 100, 100),
+    -- Mimic-specific ESP Settings
+    MonsterESP = true,
+    MonsterColor = Color3.fromRGB(255, 0, 0),
+    MonsterMaxDistance = 800,
+    ShowMonsterNames = true,
+    -- Items and Keys ESP
+    ItemESP = true,
+    ItemColor = Color3.fromRGB(255, 255, 0),
+    ItemMaxDistance = 500,
+    ShowItemNames = true,
+    -- Door and Safe Room ESP
+    DoorESP = true,
+    DoorColor = Color3.fromRGB(0, 255, 0),
+    DoorMaxDistance = 300,
+    ShowDoorNames = true,
+    SafeRoomESP = true,
+    SafeRoomColor = Color3.fromRGB(0, 255, 0),
+    -- Hiding Spots ESP
+    HidingSpotESP = true,
+    HidingSpotColor = Color3.fromRGB(100, 255, 100),
+    HidingSpotMaxDistance = 200,
+    -- Objectives ESP
+    ObjectiveESP = true,
+    ObjectiveColor = Color3.fromRGB(255, 165, 0),
+    ObjectiveMaxDistance = 600,
+    -- Escape Route ESP
+    EscapeRouteESP = true,
+    EscapeRouteColor = Color3.fromRGB(0, 255, 255),
+    -- RGB Effects
+    RainbowMode = false,
+    RainbowSpeed = 1,
+    -- Animation Settings
+    SmoothAnimations = true,
+    AnimationSpeed = 0.5,
+    BoxThickness = 3,
+    TextStrokeThickness = 2,
+    -- Alerts
+    MonsterAlert = true,
+    AlertDistance = 100
+}
+
+-- Storage for ESP objects
+local ESPObjects = {}
+local MonsterESPObjects = {}
+local ItemESPObjects = {}
+local DoorESPObjects = {}
+local HidingSpotESPObjects = {}
+local ObjectiveESPObjects = {}
+local EscapeRouteESPObjects = {}
+
+-- Create GUI with enhanced mobile design and RGB effects
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "MimicESPGui"
+ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+ScreenGui.ResetOnSpawn = false
+ScreenGui.DisplayOrder = 999
+
+-- Main Frame with premium design
+local MainFrame = Instance.new("Frame")
+MainFrame.Name = "MainFrame"
+MainFrame.Parent = ScreenGui
+MainFrame.AnchorPoint = Vector2.new(0, 0)
+MainFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 20)
+MainFrame.BorderSizePixel = 0
+MainFrame.Position = UDim2.new(0, 10, 0, 50)
+MainFrame.Size = UDim2.new(0, 380, 0, 700)
+
+-- RGB Gradient background
+local Gradient = Instance.new("UIGradient")
+Gradient.Color = ColorSequence.new{
+    ColorSequenceKeypoint.new(0, Color3.fromRGB(15, 15, 25)),
+    ColorSequenceKeypoint.new(0.5, Color3.fromRGB(25, 25, 35)),
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(15, 15, 25))
+}
+Gradient.Rotation = 45
+Gradient.Parent = MainFrame
+
+-- Animated RGB border
+local RGBBorder = Instance.new("Frame")
+RGBBorder.Name = "RGBBorder"
+RGBBorder.Parent = MainFrame
+RGBBorder.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
+RGBBorder.BorderSizePixel = 0
+RGBBorder.Position = UDim2.new(0, -2, 0, -2)
+RGBBorder.Size = UDim2.new(1, 4, 1, 4)
+RGBBorder.ZIndex = MainFrame.ZIndex - 1
+
+local RGBCorner = Instance.new("UICorner")
+RGBCorner.CornerRadius = UDim.new(0, 14)
+RGBCorner.Parent = RGBBorder
+
+-- Shadow effect
+local Shadow = Instance.new("Frame")
+Shadow.Name = "Shadow"
+Shadow.Parent = ScreenGui
+Shadow.AnchorPoint = Vector2.new(0, 0)
+Shadow.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+Shadow.BackgroundTransparency = 0.7
+Shadow.BorderSizePixel = 0
+Shadow.Position = UDim2.new(0, 15, 0, 55)
+Shadow.Size = UDim2.new(0, 380, 0, 700)
+Shadow.ZIndex = MainFrame.ZIndex - 1
+
+local ShadowCorner = Instance.new("UICorner")
+ShadowCorner.CornerRadius = UDim.new(0, 12)
+ShadowCorner.Parent = Shadow
+
+-- Main corner radius
+local MainCorner = Instance.new("UICorner")
+MainCorner.CornerRadius = UDim.new(0, 12)
+MainCorner.Parent = MainFrame
+
+-- Enhanced title with RGB effect
+local TitleLabel = Instance.new("TextLabel")
+TitleLabel.Name = "TitleLabel"
+TitleLabel.Parent = MainFrame
+TitleLabel.BackgroundTransparency = 1
+TitleLabel.Position = UDim2.new(0, 0, 0, 10)
+TitleLabel.Size = UDim2.new(1, 0, 0, 50)
+TitleLabel.Font = Enum.Font.GothamBold
+TitleLabel.Text = "👹 ESP Mimic Edition Pro"
+TitleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+TitleLabel.TextSize = 22
+TitleLabel.TextStrokeTransparency = 0
+TitleLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+
+-- Scroll Frame with better mobile support
+local ScrollFrame = Instance.new("ScrollingFrame")
+ScrollFrame.Name = "ScrollFrame"
+ScrollFrame.Parent = MainFrame
+ScrollFrame.BackgroundTransparency = 1
+ScrollFrame.Position = UDim2.new(0, 15, 0, 70)
+ScrollFrame.Size = UDim2.new(1, -30, 1, -80)
+ScrollFrame.ScrollBarThickness = 10
+ScrollFrame.CanvasSize = UDim2.new(0, 0, 0, 1000)
+ScrollFrame.ScrollingDirection = Enum.ScrollingDirection.Y
+ScrollFrame.ElasticBehavior = Enum.ElasticBehavior.WhenScrollable
+
+-- Custom scroll bar styling with RGB
+ScrollFrame.ScrollBarImageColor3 = Color3.fromRGB(0, 255, 255)
+
+-- UI Layout with better spacing
+local UIListLayout = Instance.new("UIListLayout")
+UIListLayout.Parent = ScrollFrame
+UIListLayout.Padding = UDim.new(0, 8)
+UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+
+-- Enhanced toggle button function with smooth animations
+local function CreateToggle(name, defaultValue, callback, icon, layoutOrder, description)
+    local ToggleFrame = Instance.new("Frame")
+    ToggleFrame.Name = name .. "Toggle"
+    ToggleFrame.Parent = ScrollFrame
+    ToggleFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
+    ToggleFrame.BorderSizePixel = 0
+    ToggleFrame.Size = UDim2.new(1, 0, 0, description and 60 or 45)
+    ToggleFrame.LayoutOrder = layoutOrder or 1
+    
+    -- Gradient for toggle frame
+    local ToggleGradient = Instance.new("UIGradient")
+    ToggleGradient.Color = ColorSequence.new{
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(25, 25, 35)),
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(35, 35, 45))
+    }
+    ToggleGradient.Rotation = 90
+    ToggleGradient.Parent = ToggleFrame
+    
+    local ToggleCorner = Instance.new("UICorner")
+    ToggleCorner.CornerRadius = UDim.new(0, 8)
+    ToggleCorner.Parent = ToggleFrame
+    
+    -- Animated hover effect
+    local HoverFrame = Instance.new("Frame")
+    HoverFrame.Name = "HoverFrame"
+    HoverFrame.Parent = ToggleFrame
+    HoverFrame.BackgroundColor3 = Color3.fromRGB(50, 50, 60)
+    HoverFrame.BackgroundTransparency = 1
+    HoverFrame.BorderSizePixel = 0
+    HoverFrame.Size = UDim2.new(1, 0, 1, 0)
+    HoverFrame.ZIndex = ToggleFrame.ZIndex + 1
+    
+    local HoverCorner = Instance.new("UICorner")
+    HoverCorner.CornerRadius = UDim.new(0, 8)
+    HoverCorner.Parent = HoverFrame
+    
+    -- Icon label with animation
+    local IconLabel = Instance.new("TextLabel")
+    IconLabel.Parent = ToggleFrame
+    IconLabel.BackgroundTransparency = 1
+    IconLabel.Position = UDim2.new(0, 15, 0, 0)
+    IconLabel.Size = UDim2.new(0, 30, 0, 30)
+    IconLabel.Font = Enum.Font.GothamBold
+    IconLabel.Text = icon or "⚙️"
+    IconLabel.TextColor3 = Color3.fromRGB(0, 255, 255)
+    IconLabel.TextSize = 16
+    IconLabel.TextXAlignment = Enum.TextXAlignment.Center
+    IconLabel.ZIndex = HoverFrame.ZIndex + 1
+    
+    local ToggleLabel = Instance.new("TextLabel")
+    ToggleLabel.Parent = ToggleFrame
+    ToggleLabel.BackgroundTransparency = 1
+    ToggleLabel.Position = UDim2.new(0, 50, 0, 0)
+    ToggleLabel.Size = UDim2.new(0.55, 0, 0, 30)
+    ToggleLabel.Font = Enum.Font.Gotham
+    ToggleLabel.Text = name
+    ToggleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    ToggleLabel.TextSize = 13
+    ToggleLabel.TextXAlignment = Enum.TextXAlignment.Left
+    ToggleLabel.TextStrokeTransparency = 0.5
+    ToggleLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+    ToggleLabel.ZIndex = HoverFrame.ZIndex + 1
+    
+    -- Description label if provided
+    if description then
+        local DescLabel = Instance.new("TextLabel")
+        DescLabel.Parent = ToggleFrame
+        DescLabel.BackgroundTransparency = 1
+        DescLabel.Position = UDim2.new(0, 50, 0, 25)
+        DescLabel.Size = UDim2.new(0.55, 0, 0, 25)
+        DescLabel.Font = Enum.Font.Gotham
+        DescLabel.Text = description
+        DescLabel.TextColor3 = Color3.fromRGB(150, 150, 150)
+        DescLabel.TextSize = 10
+        DescLabel.TextXAlignment = Enum.TextXAlignment.Left
+        DescLabel.TextStrokeTransparency = 0.7
+        DescLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+        DescLabel.ZIndex = HoverFrame.ZIndex + 1
+    end
+    
+    local ToggleButton = Instance.new("TextButton")
+    ToggleButton.Parent = ToggleFrame
+    ToggleButton.AnchorPoint = Vector2.new(1, 0.5)
+    ToggleButton.BackgroundColor3 = defaultValue and Color3.fromRGB(0, 200, 100) or Color3.fromRGB(200, 50, 50)
+    ToggleButton.BorderSizePixel = 0
+    ToggleButton.Position = UDim2.new(1, -15, 0.5, 0)
+    ToggleButton.Size = UDim2.new(0, 60, 0, 28)
+    ToggleButton.Font = Enum.Font.GothamBold
+    ToggleButton.Text = defaultValue and "ON" or "OFF"
+    ToggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+    ToggleButton.TextSize = 11
+    ToggleButton.TextStrokeTransparency = 0
+    ToggleButton.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+    ToggleButton.ZIndex = HoverFrame.ZIndex + 1
+    
+    local ButtonCorner = Instance.new("UICorner")
+    ButtonCorner.CornerRadius = UDim.new(0, 6)
+    ButtonCorner.Parent = ToggleButton
+    
+    local isToggled = defaultValue
+    
+    -- Enhanced hover effects
+    ToggleFrame.MouseEnter:Connect(function()
+        local hoverTween = TweenService:Create(HoverFrame,
+            TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+            {BackgroundTransparency = 0.8}
+        )
+        hoverTween:Play()
+    end)
+    
+    ToggleFrame.MouseLeave:Connect(function()
+        local leaveTween = TweenService:Create(HoverFrame,
+            TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+            {BackgroundTransparency = 1}
+        )
+        leaveTween:Play()
+    end)
+    
+    -- Enhanced button click with smooth animations
+    ToggleButton.MouseButton1Click:Connect(function()
+        isToggled = not isToggled
+        
+        -- Smooth color transition
+        local newColor = isToggled and Color3.fromRGB(0, 200, 100) or Color3.fromRGB(200, 50, 50)
+        local colorTween = TweenService:Create(ToggleButton, 
+            TweenInfo.new(ESPSettings.AnimationSpeed, Enum.EasingStyle.Quart, Enum.EasingDirection.Out),
+            {BackgroundColor3 = newColor}
+        )
+        
+        -- Button scale effect
+        local scaleTween1 = TweenService:Create(ToggleButton,
+            TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+            {Size = UDim2.new(0, 58, 0, 26)}
+        )
+        
+        colorTween:Play()
+        scaleTween1:Play()
+        
+        scaleTween1.Completed:Connect(function()
+            local scaleTween2 = TweenService:Create(ToggleButton,
+                TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+                {Size = UDim2.new(0, 60, 0, 28)}
+            )
+            scaleTween2:Play()
+        end)
+        
+        ToggleButton.Text = isToggled and "ON" or "OFF"
+        
+        -- Icon color animation
+        if isToggled then
+            local iconTween = TweenService:Create(IconLabel,
+                TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+                {TextColor3 = Color3.fromRGB(0, 255, 100)}
+            )
+            iconTween:Play()
+        else
+            local iconTween = TweenService:Create(IconLabel,
+                TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+                {TextColor3 = Color3.fromRGB(255, 100, 100)}
+            )
+            iconTween:Play()
+        end
+        
+        callback(isToggled)
+    end)
+    
+    return ToggleButton
+end
+
+-- Mimic Monster ESP Creation
+local function CreateMonsterESP(monster)
+    local ESPFolder = Instance.new("Folder")
+    ESPFolder.Name = "MonsterESP_" .. monster.Name
+    ESPFolder.Parent = monster
+    
+    -- Monster Box ESP with danger indication
+    local BoxHandles = Instance.new("BoxHandleAdornment")
+    BoxHandles.Name = "MonsterBox"
+    BoxHandles.Parent = ESPFolder
+    BoxHandles.Adornee = monster:FindFirstChild("PrimaryPart") or monster:FindFirstChild("HumanoidRootPart") or monster:FindFirstChildOfClass("Part")
+    if BoxHandles.Adornee then
+        BoxHandles.Size = BoxHandles.Adornee.Size + Vector3.new(2, 2, 2)
+        BoxHandles.Color3 = ESPSettings.MonsterColor
+        BoxHandles.Transparency = 0.3
+        BoxHandles.AlwaysOnTop = true
+        BoxHandles.ZIndex = 10
+    end
+    
+    -- Monster Billboard with warning
+    local BillboardGui = Instance.new("BillboardGui")
+    BillboardGui.Name = "MonsterName"
+    BillboardGui.Parent = ESPFolder
+    BillboardGui.Adornee = BoxHandles.Adornee
+    BillboardGui.Size = UDim2.new(0, 150, 0, 80)
+    BillboardGui.StudsOffset = Vector3.new(0, 4, 0)
+    BillboardGui.AlwaysOnTop = true
+    BillboardGui.LightInfluence = 0
+    
+    -- Monster Name Label with warning
+    local NameLabel = Instance.new("TextLabel")
+    NameLabel.Parent = BillboardGui
+    NameLabel.BackgroundTransparency = 1
+    NameLabel.Size = UDim2.new(1, 0, 0.5, 0)
+    NameLabel.Font = Enum.Font.GothamBold
+    NameLabel.Text = "⚠️ " .. monster.Name
+    NameLabel.TextColor3 = ESPSettings.MonsterColor
+    NameLabel.TextSize = 18
+    NameLabel.TextStrokeTransparency = 0
+    NameLabel.TextStrokeColor3 = Color3.new(0, 0, 0)
+    NameLabel.TextScaled = true
+    
+    -- Distance Label with danger indicator
+    local DistanceLabel = Instance.new("TextLabel")
+    DistanceLabel.Parent = BillboardGui
+    DistanceLabel.BackgroundTransparency = 1
+    DistanceLabel.Position = UDim2.new(0, 0, 0.5, 0)
+    DistanceLabel.Size = UDim2.new(1, 0, 0.5, 0)
+    DistanceLabel.Font = Enum.Font.GothamBold
+    DistanceLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    DistanceLabel.TextSize = 16
+    DistanceLabel.TextStrokeTransparency = 0
+    DistanceLabel.TextStrokeColor3 = Color3.new(0, 0, 0)
+    DistanceLabel.TextScaled = true
+    
+    MonsterESPObjects[monster] = {
+        Folder = ESPFolder,
+        Box = BoxHandles,
+        Billboard = BillboardGui,
+        NameLabel = NameLabel,
+        DistanceLabel = DistanceLabel
+    }
+    
+    return MonsterESPObjects[monster]
+end
+
+-- Hiding Spot ESP Creation
+local function CreateHidingSpotESP(hidingSpot)
+    local ESPFolder = Instance.new("Folder")
+    ESPFolder.Name = "HidingSpotESP_" .. hidingSpot.Name
+    ESPFolder.Parent = hidingSpot
+    
+    -- Hiding Spot Box ESP
+    local BoxHandles = Instance.new("BoxHandleAdornment")
+    BoxHandles.Name = "HidingSpotBox"
+    BoxHandles.Parent = ESPFolder
+    BoxHandles.Adornee = hidingSpot:FindFirstChild("PrimaryPart") or hidingSpot:FindFirstChildOfClass("Part")
+    if BoxHandles.Adornee then
+        BoxHandles.Size = BoxHandles.Adornee.Size + Vector3.new(0.5, 0.5, 0.5)
+        BoxHandles.Color3 = ESPSettings.HidingSpotColor
+        BoxHandles.Transparency = 0.4
+        BoxHandles.AlwaysOnTop = true
+        BoxHandles.ZIndex = 6
+    end
+    
+    -- Hiding Spot Billboard
+    local BillboardGui = Instance.new("BillboardGui")
+    BillboardGui.Name = "HidingSpotName"
+    BillboardGui.Parent = ESPFolder
+    BillboardGui.Adornee = BoxHandles.Adornee
+    BillboardGui.Size = UDim2.new(0, 120, 0, 60)
+    BillboardGui.StudsOffset = Vector3.new(0, 2, 0)
+    BillboardGui.AlwaysOnTop = true
+    BillboardGui.LightInfluence = 0
+    
+    -- Hiding Spot Name Label
+    local NameLabel = Instance.new("TextLabel")
+    NameLabel.Parent = BillboardGui
+    NameLabel.BackgroundTransparency = 1
+    NameLabel.Size = UDim2.new(1, 0, 0.6, 0)
+    NameLabel.Font = Enum.Font.GothamBold
+    NameLabel.Text = "🛡️ " .. hidingSpot.Name
+    NameLabel.TextColor3 = ESPSettings.HidingSpotColor
+    NameLabel.TextSize = 14
+    NameLabel.TextStrokeTransparency = 0
+    NameLabel.TextStrokeColor3 = Color3.new(0, 0, 0)
+    NameLabel.TextScaled = true
+    
+    -- Distance Label
+    local DistanceLabel = Instance.new("TextLabel")
+    DistanceLabel.Parent = BillboardGui
+    DistanceLabel.BackgroundTransparency = 1
+    DistanceLabel.Position = UDim2.new(0, 0, 0.6, 0)
+    DistanceLabel.Size = UDim2.new(1, 0, 0.4, 0)
+    DistanceLabel.Font = Enum.Font.Gotham
+    DistanceLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    DistanceLabel.TextSize = 12
+    DistanceLabel.TextStrokeTransparency = 0
+    DistanceLabel.TextStrokeColor3 = Color3.new(0, 0, 0)
+    DistanceLabel.TextScaled = true
+    
+    HidingSpotESPObjects[hidingSpot] = {
+        Folder = ESPFolder,
+        Box = BoxHandles,
+        Billboard = BillboardGui,
+        NameLabel = NameLabel,
+        DistanceLabel = DistanceLabel
+    }
+    
+    return HidingSpotESPObjects[hidingSpot]
+end
+
+-- Objective ESP Creation (books, keys, important items)
+local function CreateObjectiveESP(objective)
+    local ESPFolder = Instance.new("Folder")
+    ESPFolder.Name = "ObjectiveESP_" .. objective.Name
+    ESPFolder.Parent = objective
+    
+    -- Objective Box ESP with pulsing effect
+    local BoxHandles = Instance.new("BoxHandleAdornment")
+    BoxHandles.Name = "ObjectiveBox"
+    BoxHandles.Parent = ESPFolder
+    BoxHandles.Adornee = objective:FindFirstChild("PrimaryPart") or objective:FindFirstChildOfClass("Part")
+    if BoxHandles.Adornee then
+        BoxHandles.Size = BoxHandles.Adornee.Size + Vector3.new(1, 1, 1)
+        BoxHandles.Color3 = ESPSettings.ObjectiveColor
+        BoxHandles.Transparency = 0.2
+        BoxHandles.AlwaysOnTop = true
+        BoxHandles.ZIndex = 8
+    end
+    
+    -- Objective Billboard
+    local BillboardGui = Instance.new("BillboardGui")
+    BillboardGui.Name = "ObjectiveName"
+    BillboardGui.Parent = ESPFolder
+    BillboardGui.Adornee = BoxHandles.Adornee
+    BillboardGui.Size = UDim2.new(0, 140, 0, 70)
+    BillboardGui.StudsOffset = Vector3.new(0, 3, 0)
+    BillboardGui.AlwaysOnTop = true
+    BillboardGui.LightInfluence = 0
+    
+    -- Objective Name Label
+    local NameLabel = Instance.new("TextLabel")
+    NameLabel.Parent = BillboardGui
+    NameLabel.BackgroundTransparency = 1
+    NameLabel.Size = UDim2.new(1, 0, 0.6, 0)
+    NameLabel.Font = Enum.Font.GothamBold
+    NameLabel.Text = "🎯 " .. objective.Name
+    NameLabel.TextColor3 = ESPSettings.ObjectiveColor
+    NameLabel.TextSize = 16
+    NameLabel.TextStrokeTransparency = 0
+    NameLabel.TextStrokeColor3 = Color3.new(0, 0, 0)
+    NameLabel.TextScaled = true
+    
+    -- Distance Label
+    local DistanceLabel = Instance.new("TextLabel")
+    DistanceLabel.Parent = BillboardGui
+    DistanceLabel.BackgroundTransparency = 1
+    DistanceLabel.Position = UDim2.new(0, 0, 0.6, 0)
+    DistanceLabel.Size = UDim2.new(1, 0, 0.4, 0)
+    DistanceLabel.Font = Enum.Font.Gotham
+    DistanceLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    DistanceLabel.TextSize = 14
+    DistanceLabel.TextStrokeTransparency = 0
+    DistanceLabel.TextStrokeColor3 = Color3.new(0, 0, 0)
+    DistanceLabel.TextScaled = true
+    
+    ObjectiveESPObjects[objective] = {
+        Folder = ESPFolder,
+        Box = BoxHandles,
+        Billboard = BillboardGui,
+        NameLabel = NameLabel,
+        DistanceLabel = DistanceLabel
+    }
+    
+    return ObjectiveESPObjects[objective]
+end
+
+-- Enhanced ESP Creation Functions for Items (Mimic-specific)
+local function CreateItemESP(item)
+    local ESPFolder = Instance.new("Folder")
+    ESPFolder.Name = "ItemESP_" .. item.Name
+    ESPFolder.Parent = item
+    
+    -- Item Box ESP
+    local BoxHandles = Instance.new("BoxHandleAdornment")
+    BoxHandles.Name = "ItemBox"
+    BoxHandles.Parent = ESPFolder
+    BoxHandles.Adornee = item:FindFirstChild("PrimaryPart") or item:FindFirstChildOfClass("Part")
+    if BoxHandles.Adornee then
+        BoxHandles.Size = BoxHandles.Adornee.Size + Vector3.new(0.5, 0.5, 0.5)
+        BoxHandles.Color3 = ESPSettings.ItemColor
+        BoxHandles.Transparency = 0.5
+        BoxHandles.AlwaysOnTop = true
+        BoxHandles.ZIndex = 7
+    end
+    
+    -- Item Billboard
+    local BillboardGui = Instance.new("BillboardGui")
+    BillboardGui.Name = "ItemName"
+    BillboardGui.Parent = ESPFolder
+    BillboardGui.Adornee = BoxHandles.Adornee
+    BillboardGui.Size = UDim2.new(0, 100, 0, 50)
+    BillboardGui.StudsOffset = Vector3.new(0, 2, 0)
+    BillboardGui.AlwaysOnTop = true
+    BillboardGui.LightInfluence = 0
+    
+    -- Item Name Label with appropriate icon
+    local NameLabel = Instance.new("TextLabel")
+    NameLabel.Parent = BillboardGui
+    NameLabel.BackgroundTransparency = 1
+    NameLabel.Size = UDim2.new(1, 0, 0.6, 0)
+    NameLabel.Font = Enum.Font.GothamBold
+    
+    -- Determine item type and icon
+    local itemName = item.Name:lower()
+    local icon = "📦"
+    if string.find(itemName, "key") then
+        icon = "🗝️"
+    elseif string.find(itemName, "book") then
+        icon = "📚"
+    elseif string.find(itemName, "lantern") or string.find(itemName, "light") then
+        icon = "🔦"
+    elseif string.find(itemName, "medicine") or string.find(itemName, "heal") then
+        icon = "💊"
+    elseif string.find(itemName, "tool") then
+        icon = "🔧"
+    end
+    
+    NameLabel.Text = icon .. " " .. item.Name
+    NameLabel.TextColor3 = ESPSettings.ItemColor
+    NameLabel.TextSize = 14
+    NameLabel.TextStrokeTransparency = 0
+    NameLabel.TextStrokeColor3 = Color3.new(0, 0, 0)
+    NameLabel.TextScaled = true
+    
+    -- Distance Label
+    local DistanceLabel = Instance.new("TextLabel")
+    DistanceLabel.Parent = BillboardGui
+    DistanceLabel.BackgroundTransparency = 1
+    DistanceLabel.Position = UDim2.new(0, 0, 0.6, 0)
+    DistanceLabel.Size = UDim2.new(1, 0, 0.4, 0)
+    DistanceLabel.Font = Enum.Font.Gotham
+    DistanceLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    DistanceLabel.TextSize = 12
+    DistanceLabel.TextStrokeTransparency = 0
+    DistanceLabel.TextStrokeColor3 = Color3.new(0, 0, 0)
+    DistanceLabel.TextScaled = true
+    
+    ItemESPObjects[item] = {
+        Folder = ESPFolder,
+        Box = BoxHandles,
+        Billboard = BillboardGui,
+        NameLabel = NameLabel,
+        DistanceLabel = DistanceLabel
+    }
+    
+    return ItemESPObjects[item]
+end
+
+-- Enhanced ESP Creation Functions for Doors
+local function CreateDoorESP(door)
+    local ESPFolder = Instance.new("Folder")
+    ESPFolder.Name = "DoorESP_" .. door.Name
+    ESPFolder.Parent = door
+    
+    -- Door Box ESP
+    local BoxHandles = Instance.new("BoxHandleAdornment")
+    BoxHandles.Name = "DoorBox"
+    BoxHandles.Parent = ESPFolder
+    BoxHandles.Adornee = door:FindFirstChild("PrimaryPart") or door:FindFirstChildOfClass("Part")
+    if BoxHandles.Adornee then
+        BoxHandles.Size = BoxHandles.Adornee.Size + Vector3.new(1, 1, 1)
+        BoxHandles.Color3 = ESPSettings.DoorColor
+        BoxHandles.Transparency = 0.4
+        BoxHandles.AlwaysOnTop = true
+        BoxHandles.ZIndex = 5
+    end
+    
+    -- Door Billboard
+    local BillboardGui = Instance.new("BillboardGui")
+    BillboardGui.Name = "DoorName"
+    BillboardGui.Parent = ESPFolder
+    BillboardGui.Adornee = BoxHandles.Adornee
+    BillboardGui.Size = UDim2.new(0, 120, 0, 60)
+    BillboardGui.StudsOffset = Vector3.new(0, 3, 0)
+    BillboardGui.AlwaysOnTop = true
+    BillboardGui.LightInfluence = 0
+    
+    -- Door Name Label with state indication
+    local NameLabel = Instance.new("TextLabel")
+    NameLabel.Parent = BillboardGui
+    NameLabel.BackgroundTransparency = 1
+    NameLabel.Size = UDim2.new(1, 0, 0.6, 0)
+    NameLabel.Font = Enum.Font.GothamBold
+    
+    -- Check if door is safe room or escape route
+    local doorName = door.Name:lower()
+    local icon = "🚪"
+    if string.find(doorName, "safe") or string.find(doorName, "room") then
+        icon = "🛡️"
+        ESPSettings.DoorColor = ESPSettings.SafeRoomColor
+    elseif string.find(doorName, "exit") or string.find(doorName, "escape") then
+        icon = "🚨"
+        ESPSettings.DoorColor = ESPSettings.EscapeRouteColor
+    end
+    
+    NameLabel.Text = icon .. " " .. door.Name
+    NameLabel.TextColor3 = ESPSettings.DoorColor
+    NameLabel.TextSize = 16
+    NameLabel.TextStrokeTransparency = 0
+    NameLabel.TextStrokeColor3 = Color3.new(0, 0, 0)
+    NameLabel.TextScaled = true
+    
+    -- Distance Label
+    local DistanceLabel = Instance.new("TextLabel")
+    DistanceLabel.Parent = BillboardGui
+    DistanceLabel.BackgroundTransparency = 1
+    DistanceLabel.Position = UDim2.new(0, 0, 0.6, 0)
+    DistanceLabel.Size = UDim2.new(1, 0, 0.4, 0)
+    DistanceLabel.Font = Enum.Font.Gotham
+    DistanceLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    DistanceLabel.TextSize = 14
+    DistanceLabel.TextStrokeTransparency = 0
+    DistanceLabel.TextStrokeColor3 = Color3.new(0, 0, 0)
+    DistanceLabel.TextScaled = true
+    
+    DoorESPObjects[door] = {
+        Folder = ESPFolder,
+        Box = BoxHandles,
+        Billboard = BillboardGui,
+        NameLabel = NameLabel,
+        DistanceLabel = DistanceLabel
+    }
+    
+    return DoorESPObjects[door]
+end
+
+-- Enhanced Player ESP Creation
+local function CreateESPBox(character)
+    local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+    if not humanoidRootPart then return end
+    
+    local ESPFolder = Instance.new("Folder")
+    ESPFolder.Name = "ESP_" .. character.Name
+    ESPFolder.Parent = character
+    
+    -- Enhanced Box ESP
+    local BoxHandles = Instance.new("BoxHandleAdornment")
+    BoxHandles.Name = "ESPBox"
+    BoxHandles.Parent = ESPFolder
+    BoxHandles.Adornee = humanoidRootPart
+    BoxHandles.Size = humanoidRootPart.Size + Vector3.new(1, 3, 1)
+    BoxHandles.Color3 = ESPSettings.BoxColor
+    BoxHandles.Transparency = 0.6
+    BoxHandles.AlwaysOnTop = true
+    BoxHandles.ZIndex = 2
+    
+    -- Enhanced Billboard
+    local BillboardGui = Instance.new("BillboardGui")
+    BillboardGui.Name = "ESPName"
+    BillboardGui.Parent = ESPFolder
+    BillboardGui.Adornee = humanoidRootPart
+    BillboardGui.Size = UDim2.new(0, 140, 0, 90)
+    BillboardGui.StudsOffset = Vector3.new(0, 4, 0)
+    BillboardGui.AlwaysOnTop = true
+    BillboardGui.LightInfluence = 0
+    
+    -- Enhanced Name Label
+    local NameLabel = Instance.new("TextLabel")
+    NameLabel.Parent = BillboardGui
+    NameLabel.BackgroundTransparency = 1
+    NameLabel.Size = UDim2.new(1, 0, 0.4, 0)
+    NameLabel.Font = Enum.Font.GothamBold
+    NameLabel.TextColor3 = ESPSettings.NameColor
+    NameLabel.TextSize = 16
+    NameLabel.TextStrokeTransparency = 0
+    NameLabel.TextStrokeColor3 = Color3.new(0, 0, 0)
+    NameLabel.TextScaled = true
+    
+    -- Enhanced Distance Label
+    local DistanceLabel = Instance.new("TextLabel")
+    DistanceLabel.Parent = BillboardGui
+    DistanceLabel.BackgroundTransparency = 1
+    DistanceLabel.Position = UDim2.new(0, 0, 0.4, 0)
+    DistanceLabel.Size = UDim2.new(1, 0, 0.3, 0)
+    DistanceLabel.Font = Enum.Font.Gotham
+    DistanceLabel.TextColor3 = ESPSettings.DistanceColor
+    DistanceLabel.TextSize = 14
+    DistanceLabel.TextStrokeTransparency = 0
+    DistanceLabel.TextStrokeColor3 = Color3.new(0, 0, 0)
+    DistanceLabel.TextScaled = true
+    
+    -- Enhanced Health Label
+    local HealthLabel = Instance.new("TextLabel")
+    HealthLabel.Parent = BillboardGui
+    HealthLabel.BackgroundTransparency = 1
+    HealthLabel.Position = UDim2.new(0, 0, 0.7, 0)
+    HealthLabel.Size = UDim2.new(1, 0, 0.3, 0)
+    HealthLabel.Font = Enum.Font.GothamBold
+    HealthLabel.TextColor3 = ESPSettings.HealthColor
+    HealthLabel.TextSize = 14
+    HealthLabel.TextStrokeTransparency = 0
+    HealthLabel.TextStrokeColor3 = Color3.new(0, 0, 0)
+    HealthLabel.TextScaled = true
+    
+    -- Enhanced Tracer
+    local TracerLine = Drawing.new("Line")
+    TracerLine.Visible = false
+    TracerLine.Color = ESPSettings.TracerColor
+    TracerLine.Thickness = 3
+    TracerLine.Transparency = 0.7
+    
+    ESPObjects[character] = {
+        Folder = ESPFolder,
+        Box = BoxHandles,
+        Billboard = BillboardGui,
+        NameLabel = NameLabel,
+        DistanceLabel = DistanceLabel,
+        HealthLabel = HealthLabel,
+        Tracer = TracerLine
+    }
+    
+    return ESPObjects[character]
+end
+
+-- Update functions for all ESP types
+local function UpdatePlayerESP(character, espObj)
+    if not character or not character.Parent then return end
+    
+    local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+    local humanoid = character:FindFirstChild("Humanoid")
+    
+    if not humanoidRootPart or not humanoid then return end
+    
+    local player = Players:GetPlayerFromCharacter(character)
+    local distance = (humanoidRootPart.Position - LocalPlayer.Character.HumanoidRootPart.Position).Magnitude
+    
+    if distance > ESPSettings.MaxDistance then
+        espObj.Folder.Parent = nil
+        espObj.Tracer.Visible = false
+        return
+    end
+    
+    if ESPSettings.TeamCheck and player and player.Team == LocalPlayer.Team then
+        espObj.Folder.Parent = nil
+        espObj.Tracer.Visible = false
+        return
+    end
+    
+    espObj.Folder.Parent = character
+    
+    -- Apply rainbow colors if enabled
+    if ESPSettings.RainbowMode then
+        local rainbowColor = getRainbowColor(0)
+        espObj.Box.Color3 = rainbowColor
+        espObj.NameLabel.TextColor3 = rainbowColor
+    else
+        espObj.Box.Color3 = ESPSettings.BoxColor
+        espObj.NameLabel.TextColor3 = ESPSettings.NameColor
+    end
+    
+    espObj.Box.Visible = ESPSettings.ShowBoxes
+    espObj.Billboard.Enabled = ESPSettings.ShowNames or ESPSettings.ShowDistance or ESPSettings.ShowHealth
+    
+    if ESPSettings.ShowNames then
+        local displayName = player and player.DisplayName or character.Name
+        espObj.NameLabel.Text = "👤 " .. displayName
+        espObj.NameLabel.Visible = true
+    else
+        espObj.NameLabel.Visible = false
+    end
+    
+    if ESPSettings.ShowDistance then
+        espObj.DistanceLabel.Text = "📏 " .. math.floor(distance) .. "m"
+        espObj.DistanceLabel.Visible = true
+    else
+        espObj.DistanceLabel.Visible = false
+    end
+    
+    if ESPSettings.ShowHealth then
+        local healthPercent = math.floor((humanoid.Health / humanoid.MaxHealth) * 100)
+        espObj.HealthLabel.Text = "❤️ " .. healthPercent .. "%"
+        
+        if healthPercent > 75 then
+            espObj.HealthLabel.TextColor3 = Color3.fromRGB(0, 255, 0)
+        elseif healthPercent > 50 then
+            espObj.HealthLabel.TextColor3 = Color3.fromRGB(255, 255, 0)
+        elseif healthPercent > 25 then
+            espObj.HealthLabel.TextColor3 = Color3.fromRGB(255, 150, 0)
+        else
+            espObj.HealthLabel.TextColor3 = Color3.fromRGB(255, 0, 0)
+        end
+        espObj.HealthLabel.Visible = true
+    else
+        espObj.HealthLabel.Visible = false
+    end
+    
+    if ESPSettings.ShowTracers then
+        local screenPos, onScreen = Camera:WorldToScreenPoint(humanoidRootPart.Position)
+        if onScreen then
+            espObj.Tracer.From = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y)
+            espObj.Tracer.To = Vector2.new(screenPos.X, screenPos.Y)
+            espObj.Tracer.Color = ESPSettings.RainbowMode and getRainbowColor(0.3) or ESPSettings.TracerColor
+            espObj.Tracer.Visible = true
+        else
+            espObj.Tracer.Visible = false
+        end
+    else
+        espObj.Tracer.Visible = false
+    end
+end
+
+-- Monster Alert System
+local function CreateMonsterAlert(monster, distance)
+    if not ESPSettings.MonsterAlert or distance > ESPSettings.AlertDistance then return end
+    
+    -- Create danger notification
+    local AlertGui = Instance.new("ScreenGui")
+    AlertGui.Name = "MonsterAlert"
+    AlertGui.Parent = LocalPlayer.PlayerGui
+    AlertGui.DisplayOrder = 1000
+    
+    local AlertFrame = Instance.new("Frame")
+    AlertFrame.Parent = AlertGui
+    AlertFrame.AnchorPoint = Vector2.new(0.5, 0)
+    AlertFrame.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
+    AlertFrame.BorderSizePixel = 0
+    AlertFrame.Position = UDim2.new(0.5, 0, 0, 20)
+    AlertFrame.Size = UDim2.new(0, 300, 0, 60)
+    
+    local AlertCorner = Instance.new("UICorner")
+    AlertCorner.CornerRadius = UDim.new(0, 10)
+    AlertCorner.Parent = AlertFrame
+    
+    local AlertLabel = Instance.new("TextLabel")
+    AlertLabel.Parent = AlertFrame
+    AlertLabel.BackgroundTransparency = 1
+    AlertLabel.Size = UDim2.new(1, 0, 1, 0)
+    AlertLabel.Font = Enum.Font.GothamBold
+    AlertLabel.Text = "⚠️ DANGER! " .. monster.Name .. " ใกล้คุณ!"
+    AlertLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    AlertLabel.TextSize = 16
+    AlertLabel.TextStrokeTransparency = 0
+    AlertLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+    AlertLabel.TextScaled = true
+    
+    -- Pulsing animation
+    local pulseAnimation = TweenService:Create(AlertFrame,
+        TweenInfo.new(0.5, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
+        {BackgroundTransparency = 0.3}
+    )
+    pulseAnimation:Play()
+    
+    -- Auto-remove after 3 seconds
+    game:GetService("Debris"):AddItem(AlertGui, 3)
+end
+
+-- Update functions for Mimic-specific objects
+local function UpdateMonsterESP(monster, espObj)
+    if not monster or not monster.Parent then return end
+    if not LocalPlayer.Character or not LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then return end
+    
+    local monsterPart = monster:FindFirstChild("PrimaryPart") or monster:FindFirstChild("HumanoidRootPart") or monster:FindFirstChildOfClass("Part")
+    if not monsterPart then return end
+    
+    local distance = (monsterPart.Position - LocalPlayer.Character.HumanoidRootPart.Position).Magnitude
+    
+    if distance > ESPSettings.MonsterMaxDistance then
+        espObj.Folder.Parent = nil
+        return
+    end
+    
+    espObj.Folder.Parent = monster
+    
+    -- Monster alert check
+    if distance <= ESPSettings.AlertDistance then
+        CreateMonsterAlert(monster, distance)
+    end
+    
+    if ESPSettings.RainbowMode then
+        local rainbowColor = getRainbowColor(0.5)
+        espObj.Box.Color3 = rainbowColor
+        espObj.NameLabel.TextColor3 = rainbowColor
+    else
+        espObj.Box.Color3 = ESPSettings.MonsterColor
+        espObj.NameLabel.TextColor3 = ESPSettings.MonsterColor
+    end
+    
+    -- Distance-based color intensity for danger level
+    local dangerLevel = math.max(0, 1 - (distance / ESPSettings.AlertDistance))
+    espObj.Box.Transparency = 0.3 + (dangerLevel * 0.4)
+    
+    espObj.DistanceLabel.Text = math.floor(distance) .. "m"
+    if distance <= ESPSettings.AlertDistance then
+        espObj.DistanceLabel.Text = "🚨 " .. espObj.DistanceLabel.Text .. " DANGER!"
+        espObj.DistanceLabel.TextColor3 = Color3.fromRGB(255, 0, 0)
+    else
+        espObj.DistanceLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    end
+    
+    espObj.Box.Visible = ESPSettings.MonsterESP
+    espObj.Billboard.Enabled = ESPSettings.MonsterESP and ESPSettings.ShowMonsterNames
+end
+
+local function UpdateItemESP(item, espObj)
+    if not item or not item.Parent then return end
+    if not LocalPlayer.Character or not LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then return end
+    
+    local itemPart = item:FindFirstChild("PrimaryPart") or item:FindFirstChildOfClass("Part")
+    if not itemPart then return end
+    
+    local distance = (itemPart.Position - LocalPlayer.Character.HumanoidRootPart.Position).Magnitude
+    
+    if distance > ESPSettings.ItemMaxDistance then
+        espObj.Folder.Parent = nil
+        return
+    end
+    
+    espObj.Folder.Parent = item
+    
+    if ESPSettings.RainbowMode then
+        local rainbowColor = getRainbowColor(0.1)
+        espObj.Box.Color3 = rainbowColor
+        espObj.NameLabel.TextColor3 = rainbowColor
+    else
+        espObj.Box.Color3 = ESPSettings.ItemColor
+        espObj.NameLabel.TextColor3 = ESPSettings.ItemColor
+    end
+    
+    espObj.DistanceLabel.Text = math.floor(distance) .. "m"
+    espObj.Box.Visible = ESPSettings.ItemESP
+    espObj.Billboard.Enabled = ESPSettings.ItemESP and ESPSettings.ShowItemNames
+    
+    -- Interaction hint
+    if distance <= 10 and (item:FindFirstChild("ClickDetector") or item:FindFirstChild("ProximityPrompt")) then
+        espObj.DistanceLabel.Text = "💫 " .. espObj.DistanceLabel.Text .. " [PRESS E]"
+        espObj.DistanceLabel.TextColor3 = Color3.fromRGB(0, 255, 255)
+    end
+end
+
+local function UpdateDoorESP(door, espObj)
+    if not door or not door.Parent then return end
+    if not LocalPlayer.Character or not LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then return end
+    
+    local doorPart = door:FindFirstChild("PrimaryPart") or door:FindFirstChildOfClass("Part")
+    if not doorPart then return end
+    
+    local distance = (doorPart.Position - LocalPlayer.Character.HumanoidRootPart.Position).Magnitude
+    
+    if distance > ESPSettings.DoorMaxDistance then
+        espObj.Folder.Parent = nil
+        return
+    end
+    
+    espObj.Folder.Parent = door
+    
+    if ESPSettings.RainbowMode then
+        local rainbowColor = getRainbowColor(0.2)
+        espObj.Box.Color3 = rainbowColor
+        espObj.NameLabel.TextColor3 = rainbowColor
+    else
+        espObj.Box.Color3 = ESPSettings.DoorColor
+        espObj.NameLabel.TextColor3 = ESPSettings.DoorColor
+    end
+    
+    espObj.DistanceLabel.Text = math.floor(distance) .. "m"
+    espObj.Box.Visible = ESPSettings.DoorESP
+    espObj.Billboard.Enabled = ESPSettings.DoorESP and ESPSettings.ShowDoorNames
+end
+
+local function UpdateHidingSpotESP(hidingSpot, espObj)
+    if not hidingSpot or not hidingSpot.Parent then return end
+    if not LocalPlayer.Character or not LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then return end
+    
+    local hidingPart = hidingSpot:FindFirstChild("PrimaryPart") or hidingSpot:FindFirstChildOfClass("Part")
+    if not hidingPart then return end
+    
+    local distance = (hidingPart.Position - LocalPlayer.Character.HumanoidRootPart.Position).Magnitude
+    
+    if distance > ESPSettings.HidingSpotMaxDistance then
+        espObj.Folder.Parent = nil
+        return
+    end
+    
+    espObj.Folder.Parent = hidingSpot
+    
+    if ESPSettings.RainbowMode then
+        local rainbowColor = getRainbowColor(0.3)
+        espObj.Box.Color3 = rainbowColor
+        espObj.NameLabel.TextColor3 = rainbowColor
+    else
+        espObj.Box.Color3 = ESPSettings.HidingSpotColor
+        espObj.NameLabel.TextColor3 = ESPSettings.HidingSpotColor
+    end
+    
+    espObj.DistanceLabel.Text = math.floor(distance) .. "m"
+    if distance <= 15 then
+        espObj.DistanceLabel.Text = "🏃 " .. espObj.DistanceLabel.Text .. " [HIDE HERE]"
+        espObj.DistanceLabel.TextColor3 = Color3.fromRGB(0, 255, 0)
+    end
+    
+    espObj.Box.Visible = ESPSettings.HidingSpotESP
+    espObj.Billboard.Enabled = ESPSettings.HidingSpotESP
+end
+
+local function UpdateObjectiveESP(objective, espObj)
+    if not objective or not objective.Parent then return end
+    if not LocalPlayer.Character or not LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then return end
+    
+    local objectivePart = objective:FindFirstChild("PrimaryPart") or objective:FindFirstChildOfClass("Part")
+    if not objectivePart then return end
+    
+    local distance = (objectivePart.Position - LocalPlayer.Character.HumanoidRootPart.Position).Magnitude
+    
+    if distance > ESPSettings.ObjectiveMaxDistance then
+        espObj.Folder.Parent = nil
+        return
+    end
+    
+    espObj.Folder.Parent = objective
+    
+    if ESPSettings.RainbowMode then
+        local rainbowColor = getRainbowColor(0.4)
+        espObj.Box.Color3 = rainbowColor
+        espObj.NameLabel.TextColor3 = rainbowColor
+    else
+        espObj.Box.Color3 = ESPSettings.ObjectiveColor
+        espObj.NameLabel.TextColor3 = ESPSettings.ObjectiveColor
+    end
+    
+    espObj.DistanceLabel.Text = math.floor(distance) .. "m"
+    espObj.Box.Visible = ESPSettings.ObjectiveESP
+    espObj.Billboard.Enabled = ESPSettings.ObjectiveESP
+    
+    -- Add pulsing effect for objectives
+    if ESPSettings.ObjectiveESP then
+        local pulseScale = 1 + math.sin(tick() * 4) * 0.15
+        espObj.Box.Size = (objectivePart.Size + Vector3.new(1, 1, 1)) * pulseScale
+    end
+end
+
+-- Remove ESP functions
+local function RemovePlayerESP(character)
+    if ESPObjects[character] then
+        if ESPObjects[character].Folder then
+            ESPObjects[character].Folder:Destroy()
+        end
+        if ESPObjects[character].Tracer then
+            ESPObjects[character].Tracer:Remove()
+        end
+        ESPObjects[character] = nil
+    end
+end
+
+local function RemoveMonsterESP(monster)
+    if MonsterESPObjects[monster] then
+        if MonsterESPObjects[monster].Folder then
+            MonsterESPObjects[monster].Folder:Destroy()
+        end
+        MonsterESPObjects[monster] = nil
+    end
+end
+
+local function RemoveItemESP(item)
+    if ItemESPObjects[item] then
+        if ItemESPObjects[item].Folder then
+            ItemESPObjects[item].Folder:Destroy()
+        end
+        ItemESPObjects[item] = nil
+    end
+end
+
+local function RemoveDoorESP(door)
+    if DoorESPObjects[door] then
+        if DoorESPObjects[door].Folder then
+            DoorESPObjects[door].Folder:Destroy()
+        end
+        DoorESPObjects[door] = nil
+    end
+end
+
+local function RemoveHidingSpotESP(hidingSpot)
+    if HidingSpotESPObjects[hidingSpot] then
+        if HidingSpotESPObjects[hidingSpot].Folder then
+            HidingSpotESPObjects[hidingSpot].Folder:Destroy()
+        end
+        HidingSpotESPObjects[hidingSpot] = nil
+    end
+end
+
+local function RemoveObjectiveESP(objective)
+    if ObjectiveESPObjects[objective] then
+        if ObjectiveESPObjects[objective].Folder then
+            ObjectiveESPObjects[objective].Folder:Destroy()
+        end
+        ObjectiveESPObjects[objective] = nil
+    end
+end
+
+-- Add ESP functions
+local function AddPlayerESP(character)
+    if character == LocalPlayer.Character then return end
+    if not character:FindFirstChild("Humanoid") then return end
+    if ESPObjects[character] then return end
+    
+    CreateESPBox(character)
+end
+
+local function AddMonsterESP(monster)
+    if MonsterESPObjects[monster] then return end
+    CreateMonsterESP(monster)
+end
+
+local function AddItemESP(item)
+    if ItemESPObjects[item] then return end
+    CreateItemESP(item)
+end
+
+local function AddDoorESP(door)
+    if DoorESPObjects[door] then return end
+    CreateDoorESP(door)
+end
+
+local function AddHidingSpotESP(hidingSpot)
+    if HidingSpotESPObjects[hidingSpot] then return end
+    CreateHidingSpotESP(hidingSpot)
+end
+
+local function AddObjectiveESP(objective)
+    if ObjectiveESPObjects[objective] then return end
+    CreateObjectiveESP(objective)
+end
+
+-- Enhanced workspace scanning for Mimic-specific objects
+local function ScanWorkspace()
+    for _, obj in pairs(workspace:GetDescendants()) do
+        if ESPSettings.Enabled then
+            -- Scan for players
+            if obj:IsA("Model") and obj:FindFirstChild("Humanoid") and obj:FindFirstChild("HumanoidRootPart") then
+                if obj ~= LocalPlayer.Character then
+                    AddPlayerESP(obj)
+                end
+            end
+        end
+        
+        if ESPSettings.MonsterESP then
+            -- Scan for monsters (Mimic entities)
+            if obj:IsA("Model") and (
+                string.find(obj.Name:lower(), "mimic") or
+                string.find(obj.Name:lower(), "monster") or
+                string.find(obj.Name:lower(), "beast") or
+                string.find(obj.Name:lower(), "entity") or
+                string.find(obj.Name:lower(), "ghost") or
+                string.find(obj.Name:lower(), "demon") or
+                string.find(obj.Name:lower(), "nightmare") or
+                string.find(obj.Name:lower(), "shadow") or
+                (obj:FindFirstChild("Humanoid") and obj:FindFirstChild("HumanoidRootPart") and 
+                 not Players:GetPlayerFromCharacter(obj))
+            ) then
+                AddMonsterESP(obj)
+            end
+        end
+        
+        if ESPSettings.ItemESP then
+            -- Scan for items (Mimic game items)
+            if obj:IsA("Model") and (
+                string.find(obj.Name:lower(), "key") or
+                string.find(obj.Name:lower(), "book") or
+                string.find(obj.Name:lower(), "lantern") or
+                string.find(obj.Name:lower(), "light") or
+                string.find(obj.Name:lower(), "medicine") or
+                string.find(obj.Name:lower(), "tool") or
+                string.find(obj.Name:lower(), "item") or
+                string.find(obj.Name:lower(), "pickup") or
+                string.find(obj.Name:lower(), "collectible") or
+                obj:FindFirstChild("ClickDetector") or
+                obj:FindFirstChild("ProximityPrompt")
+            ) then
+                AddItemESP(obj)
+            end
+        end
+        
+        if ESPSettings.DoorESP then
+            -- Scan for doors and safe rooms
+            if obj:IsA("Model") and (
+                string.find(obj.Name:lower(), "door") or
+                string.find(obj.Name:lower(), "gate") or
+                string.find(obj.Name:lower(), "entrance") or
+                string.find(obj.Name:lower(), "exit") or
+                string.find(obj.Name:lower(), "safe") or
+                string.find(obj.Name:lower(), "room")
+            ) then
+                AddDoorESP(obj)
+            end
+        end
+        
+        if ESPSettings.HidingSpotESP then
+            -- Scan for hiding spots
+            if obj:IsA("Model") and (
+                string.find(obj.Name:lower(), "locker") or
+                string.find(obj.Name:lower(), "closet") or
+                string.find(obj.Name:lower(), "cabinet") or
+                string.find(obj.Name:lower(), "hide") or
+                string.find(obj.Name:lower(), "shelter") or
+                string.find(obj.Name:lower(), "wardrobe") or
+                string.find(obj.Name:lower(), "desk")
+            ) then
+                AddHidingSpotESP(obj)
+            end
+        end
+        
+        if ESPSettings.ObjectiveESP then
+            -- Scan for objectives
+            if obj:IsA("Model") and (
+                string.find(obj.Name:lower(), "objective") or
+                string.find(obj.Name:lower(), "quest") or
+                string.find(obj.Name:lower(), "target") or
+                string.find(obj.Name:lower(), "goal") or
+                string.find(obj.Name:lower(), "mission") or
+                string.find(obj.Name:lower(), "important")
+            ) then
+                AddObjectiveESP(obj)
+            end
+        end
+    end
+end
+
+-- Setup Enhanced UI Toggles for Mimic
+CreateToggle("ESP เปิด/ปิด", ESPSettings.Enabled, function(value)
+    ESPSettings.Enabled = value
+    if not value then
+        for character, _ in pairs(ESPObjects) do
+            RemovePlayerESP(character)
+        end
+    else
+        ScanWorkspace()
+    end
+end, "👁️", 1, "แสดง ESP ผู้เล่นอื่น")
+
+CreateToggle("ESP มอนสเตอร์", ESPSettings.MonsterESP, function(value)
+    ESPSettings.MonsterESP = value
+    if not value then
+        for monster, _ in pairs(MonsterESPObjects) do
+            RemoveMonsterESP(monster)
+        end
+    else
+        ScanWorkspace()
+    end
+end, "👹", 2, "แสดงตำแหน่งมอนสเตอร์ Mimic")
+
+CreateToggle("ESP ไอเทม", ESPSettings.ItemESP, function(value)
+    ESPSettings.ItemESP = value
+    if not value then
+        for item, _ in pairs(ItemESPObjects) do
+            RemoveItemESP(item)
+        end
+    else
+        ScanWorkspace()
+    end
+end, "🗝️", 3, "แสดงกุญแจ หนังสือ และไอเทม")
+
+CreateToggle("ESP ประตู", ESPSettings.DoorESP, function(value)
+    ESPSettings.DoorESP = value
+    if not value then
+        for door, _ in pairs(DoorESPObjects) do
+            RemoveDoorESP(door)
+        end
+    else
+        ScanWorkspace()
+    end
+end, "🚪", 4, "แสดงประตูและห้องปลอดภัย")
+
+CreateToggle("ESP จุดซ่อน", ESPSettings.HidingSpotESP, function(value)
+    ESPSettings.HidingSpotESP = value
+    if not value then
+        for hidingSpot, _ in pairs(HidingSpotESPObjects) do
+            RemoveHidingSpotESP(hidingSpot)
+        end
+    else
+        ScanWorkspace()
+    end
+end, "🛡️", 5, "แสดงตู้ล็อกเกอร์และที่ซ่อน")
+
+CreateToggle("ESP เป้าหมาย", ESPSettings.ObjectiveESP, function(value)
+    ESPSettings.ObjectiveESP = value
+    if not value then
+        for objective, _ in pairs(ObjectiveESPObjects) do
+            RemoveObjectiveESP(objective)
+        end
+    else
+        ScanWorkspace()
+    end
+end, "🎯", 6, "แสดงเป้าหมายและภารกิจ")
+
+CreateToggle("แจ้งเตือนอันตราย", ESPSettings.MonsterAlert, function(value)
+    ESPSettings.MonsterAlert = value
+end, "🚨", 7, "แจ้งเตือนเมื่อมอนสเตอร์เข้าใกล้")
+
+CreateToggle("แสดงชื่อ", ESPSettings.ShowNames, function(value)
+    ESPSettings.ShowNames = value
+end, "👤", 8)
+
+CreateToggle("แสดงระยะทาง", ESPSettings.ShowDistance, function(value)
+    ESPSettings.ShowDistance = value
+end, "📏", 9)
+
+CreateToggle("แสดงเลือด", ESPSettings.ShowHealth, function(value)
+    ESPSettings.ShowHealth = value
+end, "❤️", 10)
+
+CreateToggle("แสดงกรอบ", ESPSettings.ShowBoxes, function(value)
+    ESPSettings.ShowBoxes = value
+end, "⬜", 11)
+
+CreateToggle("แสดงเส้น", ESPSettings.ShowTracers, function(value)
+    ESPSettings.ShowTracers = value
+end, "📍", 12)
+
+CreateToggle("เช็คทีม", ESPSettings.TeamCheck, function(value)
+    ESPSettings.TeamCheck = value
+end, "👥", 13)
+
+CreateToggle("โหมด RGB", ESPSettings.RainbowMode, function(value)
+    ESPSettings.RainbowMode = value
+end, "🌈", 14, "เปลี่ยนสีแบบสายรุ้ง")
+
+CreateToggle("อนิเมชั่นนุ่ม", ESPSettings.SmoothAnimations, function(value)
+    ESPSettings.SmoothAnimations = value
+    ESPSettings.AnimationSpeed = value and 0.5 or 0.1
+end, "✨", 15, "ทำให้อนิเมชั่นนุ่มลื่น")
+
+-- Enhanced Close and Minimize buttons
+local ButtonFrame = Instance.new("Frame")
+ButtonFrame.Name = "ButtonFrame"
+ButtonFrame.Parent = MainFrame
+ButtonFrame.BackgroundTransparency = 1
+ButtonFrame.AnchorPoint = Vector2.new(1, 0)
+ButtonFrame.Position = UDim2.new(1, -10, 0, 10)
+ButtonFrame.Size = UDim2.new(0, 80, 0, 40)
+
+local ButtonLayout = Instance.new("UIListLayout")
+ButtonLayout.Parent = ButtonFrame
+ButtonLayout.FillDirection = Enum.FillDirection.Horizontal
+ButtonLayout.Padding = UDim.new(0, 5)
+ButtonLayout.SortOrder = Enum.SortOrder.LayoutOrder
+
+-- Minimize Button
+local MinimizeButton = Instance.new("TextButton")
+MinimizeButton.Name = "MinimizeButton"
+MinimizeButton.Parent = ButtonFrame
+MinimizeButton.BackgroundColor3 = Color3.fromRGB(100, 100, 150)
+MinimizeButton.BorderSizePixel = 0
+MinimizeButton.Size = UDim2.new(0, 35, 0, 35)
+MinimizeButton.Font = Enum.Font.GothamBold
+MinimizeButton.Text = "—"
+MinimizeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+MinimizeButton.TextSize = 16
+MinimizeButton.TextStrokeTransparency = 0
+MinimizeButton.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+
+local MinimizeCorner = Instance.new("UICorner")
+MinimizeCorner.CornerRadius = UDim.new(0, 8)
+MinimizeCorner.Parent = MinimizeButton
+
+-- Close Button
+local CloseButton = Instance.new("TextButton")
+CloseButton.Name = "CloseButton"
+CloseButton.Parent = ButtonFrame
+CloseButton.BackgroundColor3 = Color3.fromRGB(255, 100, 100)
+CloseButton.BorderSizePixel = 0
+CloseButton.Size = UDim2.new(0, 35, 0, 35)
+CloseButton.Font = Enum.Font.GothamBold
+CloseButton.Text = "✕"
+CloseButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+CloseButton.TextSize = 16
+CloseButton.TextStrokeTransparency = 0
+CloseButton.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+
+local CloseCorner = Instance.new("UICorner")
+CloseCorner.CornerRadius = UDim.new(0, 8)
+CloseCorner.Parent = CloseButton
+
+-- Enhanced Mobile-Friendly Dragging
+local dragging = false
+local dragStart = nil
+local startPos = nil
+
+local function StartDrag(input)
+    dragging = true
+    dragStart = input.Position
+    startPos = MainFrame.Position
+    
+    local dragTween = TweenService:Create(MainFrame,
+        TweenInfo.new(0.2, Enum.EasingStyle.Quad),
+        {BackgroundTransparency = 0.1}
+    )
+    dragTween:Play()
+end
+
+local function UpdateDrag(input)
+    if dragging then
+        local delta = input.Position - dragStart
+        local newX = math.max(0, math.min(startPos.X.Offset + delta.X, Camera.ViewportSize.X - MainFrame.AbsoluteSize.X))
+        local newY = math.max(0, math.min(startPos.Y.Offset + delta.Y, Camera.ViewportSize.Y - MainFrame.AbsoluteSize.Y))
+        MainFrame.Position = UDim2.new(0, newX, 0, newY)
+        Shadow.Position = UDim2.new(0, newX + 5, 0, newY + 5)
+    end
+end
+
+local function EndDrag()
+    if dragging then
+        dragging = false
+        local endTween = TweenService:Create(MainFrame,
+            TweenInfo.new(0.2, Enum.EasingStyle.Quad),
+            {BackgroundTransparency = 0}
+        )
+        endTween:Play()
+    end
+end
+
+-- Touch and mouse events
+MainFrame.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        StartDrag(input)
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+        UpdateDrag(input)
+    end
+end)
+
+UserInputService.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        EndDrag()
+    end
+end)
+
+-- Button functionality
+CloseButton.MouseButton1Click:Connect(function()
+    local closeTween = TweenService:Create(MainFrame,
+        TweenInfo.new(0.5, Enum.EasingStyle.Back, Enum.EasingDirection.In),
+        {Size = UDim2.new(0, 0, 0, 0), BackgroundTransparency = 1}
+    )
+    closeTween:Play()
+    
+    closeTween.Completed:Connect(function()
+        ScreenGui:Destroy()
+        for character, _ in pairs(ESPObjects) do
+            RemovePlayerESP(character)
+        end
+        for monster, _ in pairs(MonsterESPObjects) do
+            RemoveMonsterESP(monster)
+        end
+        for item, _ in pairs(ItemESPObjects) do
+            RemoveItemESP(item)
+        end
+        for door, _ in pairs(DoorESPObjects) do
+            RemoveDoorESP(door)
+        end
+        for hidingSpot, _ in pairs(HidingSpotESPObjects) do
+            RemoveHidingSpotESP(hidingSpot)
+        end
+        for objective, _ in pairs(ObjectiveESPObjects) do
+            RemoveObjectiveESP(objective)
+        end
+    end)
+end)
+
+local minimized = false
+MinimizeButton.MouseButton1Click:Connect(function()
+    minimized = not minimized
+    
+    local targetSize = minimized and UDim2.new(0, 380, 0, 70) or UDim2.new(0, 380, 0, 700)
+    local sizeTween = TweenService:Create(MainFrame,
+        TweenInfo.new(0.6, Enum.EasingStyle.Quart, Enum.EasingDirection.Out),
+        {Size = targetSize}
+    )
+    
+    local shadowTween = TweenService:Create(Shadow,
+        TweenInfo.new(0.6, Enum.EasingStyle.Quart, Enum.EasingDirection.Out),
+        {Size = targetSize}
+    )
+    
+    sizeTween:Play()
+    shadowTween:Play()
+    
+    ScrollFrame.Visible = not minimized
+    MinimizeButton.Text = minimized and "+" or "—"
+end)
+
+-- Keyboard toggle (Insert key)
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed then return end
+    if input.KeyCode == Enum.KeyCode.Insert then
+        ScreenGui.Enabled = not ScreenGui.Enabled
+    end
+end)
+
+-- Event Connections
+local connections = {}
+
+-- Player events
+connections.playerAdded = Players.PlayerAdded:Connect(function(player)
+    player.CharacterAdded:Connect(function(character)
+        if ESPSettings.Enabled then
+            character:WaitForChild("HumanoidRootPart")
+            AddPlayerESP(character)
+        end
+    end)
+end)
+
+connections.playerRemoving = Players.PlayerRemoving:Connect(function(player)
+    if player.Character and ESPObjects[player.Character] then
+        RemovePlayerESP(player.Character)
+    end
+end)
+
+-- Workspace scanning for new objects
+connections.descendantAdded = workspace.DescendantAdded:Connect(function(descendant)
+    wait(0.1)
+    
+    if ESPSettings.Enabled and descendant:IsA("Model") and descendant:FindFirstChild("Humanoid") and descendant:FindFirstChild("HumanoidRootPart") then
+        AddPlayerESP(descendant)
+    end
+    
+    if ESPSettings.MonsterESP and descendant:IsA("Model") then
+        if string.find(descendant.Name:lower(), "mimic") or string.find(descendant.Name:lower(), "monster") or 
+           string.find(descendant.Name:lower(), "beast") or string.find(descendant.Name:lower(), "entity") or
+           string.find(descendant.Name:lower(), "ghost") or string.find(descendant.Name:lower(), "demon") or
+           string.find(descendant.Name:lower(), "nightmare") or string.find(descendant.Name:lower(), "shadow") or
+           (descendant:FindFirstChild("Humanoid") and descendant:FindFirstChild("HumanoidRootPart") and 
+            not Players:GetPlayerFromCharacter(descendant)) then
+            AddMonsterESP(descendant)
+        end
+    end
+    
+    if ESPSettings.ItemESP and descendant:IsA("Model") then
+        if string.find(descendant.Name:lower(), "key") or string.find(descendant.Name:lower(), "book") or 
+           string.find(descendant.Name:lower(), "lantern") or string.find(descendant.Name:lower(), "light") or
+           string.find(descendant.Name:lower(), "medicine") or string.find(descendant.Name:lower(), "tool") or
+           string.find(descendant.Name:lower(), "item") or string.find(descendant.Name:lower(), "pickup") or
+           descendant:FindFirstChild("ClickDetector") or descendant:FindFirstChild("ProximityPrompt") then
+            AddItemESP(descendant)
+        end
+    end
+    
+    if ESPSettings.DoorESP and descendant:IsA("Model") then
+        if string.find(descendant.Name:lower(), "door") or string.find(descendant.Name:lower(), "gate") or
+           string.find(descendant.Name:lower(), "entrance") or string.find(descendant.Name:lower(), "exit") or
+           string.find(descendant.Name:lower(), "safe") or string.find(descendant.Name:lower(), "room") then
+            AddDoorESP(descendant)
+        end
+    end
+    
+    if ESPSettings.HidingSpotESP and descendant:IsA("Model") then
+        if string.find(descendant.Name:lower(), "locker") or string.find(descendant.Name:lower(), "closet") or
+           string.find(descendant.Name:lower(), "cabinet") or string.find(descendant.Name:lower(), "hide") or
+           string.find(descendant.Name:lower(), "shelter") or string.find(descendant.Name:lower(), "wardrobe") or
+           string.find(descendant.Name:lower(), "desk") then
+            AddHidingSpotESP(descendant)
+        end
+    end
+    
+    if ESPSettings.ObjectiveESP and descendant:IsA("Model") then
+        if string.find(descendant.Name:lower(), "objective") or string.find(descendant.Name:lower(), "quest") or
+           string.find(descendant.Name:lower(), "target") or string.find(descendant.Name:lower(), "goal") or
+           string.find(descendant.Name:lower(), "mission") or string.find(descendant.Name:lower(), "important") then
+            AddObjectiveESP(descendant)
+        end
+    end
+end)
+
+connections.descendantRemoving = workspace.DescendantRemoving:Connect(function(descendant)
+    if descendant:IsA("Model") then
+        if ESPObjects[descendant] then
+            RemovePlayerESP(descendant)
+        end
+        if MonsterESPObjects[descendant] then
+            RemoveMonsterESP(descendant)
+        end
+        if ItemESPObjects[descendant] then
+            RemoveItemESP(descendant)
+        end
+        if DoorESPObjects[descendant] then
+            RemoveDoorESP(descendant)
+        end
+        if HidingSpotESPObjects[descendant] then
+            RemoveHidingSpotESP(descendant)
+        end
+        if ObjectiveESPObjects[descendant] then
+            RemoveObjectiveESP(descendant)
+        end
+    end
+end)
+
+-- Enhanced update loop with RGB animation
+local updateTimer = 0
+connections.heartbeat = RunService.Heartbeat:Connect(function(deltaTime)
+    updateTimer = updateTimer + deltaTime
+    
+    -- Update rainbow time for RGB effects
+    if ESPSettings.RainbowMode then
+        rainbowTime = rainbowTime + deltaTime * ESPSettings.RainbowSpeed
+        if rainbowTime >= 1 then
+            rainbowTime = 0
+        end
+        
+        -- Update RGB border
+        RGBBorder.BackgroundColor3 = getRainbowColor(0)
+    end
+    
+    -- Update ESP every 0.1 seconds for performance
+    if updateTimer >= 0.1 then
+        updateTimer = 0
+        
+        if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+            -- Update player ESP
+            if ESPSettings.Enabled then
+                for character, espObj in pairs(ESPObjects) do
+                    if character and character.Parent then
+                        UpdatePlayerESP(character, espObj)
+                    else
+                        RemovePlayerESP(character)
+                    end
+                end
+            end
+            
+            -- Update monster ESP
+            if ESPSettings.MonsterESP then
+                for monster, espObj in pairs(MonsterESPObjects) do
+                    if monster and monster.Parent then
+                        UpdateMonsterESP(monster, espObj)
+                    else
+                        RemoveMonsterESP(monster)
+                    end
+                end
+            end
+            
+            -- Update item ESP
+            if ESPSettings.ItemESP then
+                for item, espObj in pairs(ItemESPObjects) do
+                    if item and item.Parent then
+                        UpdateItemESP(item, espObj)
+                    else
+                        RemoveItemESP(item)
+                    end
+                end
+            end
+            
+            -- Update door ESP
+            if ESPSettings.DoorESP then
+                for door, espObj in pairs(DoorESPObjects) do
+                    if door and door.Parent then
+                        UpdateDoorESP(door, espObj)
+                    else
+                        RemoveDoorESP(door)
+                    end
+                end
+            end
+            
+            -- Update hiding spot ESP
+            if ESPSettings.HidingSpotESP then
+                for hidingSpot, espObj in pairs(HidingSpotESPObjects) do
+                    if hidingSpot and hidingSpot.Parent then
+                        UpdateHidingSpotESP(hidingSpot, espObj)
+                    else
+                        RemoveHidingSpotESP(hidingSpot)
+                    end
+                end
+            end
+            
+            -- Update objective ESP
+            if ESPSettings.ObjectiveESP then
+                for objective, espObj in pairs(ObjectiveESPObjects) do
+                    if objective and objective.Parent then
+                        UpdateObjectiveESP(objective, espObj)
+                    else
+                        RemoveObjectiveESP(objective)
+                    end
+                end
+            end
+        end
+    end
+end)
+
+-- Initial setup
+ScanWorkspace()
+
+for _, player in pairs(Players:GetPlayers()) do
+    if player.Character and player ~= LocalPlayer then
+        if ESPSettings.Enabled then
+            AddPlayerESP(player.Character)
+        end
+    end
+end
+
+-- Cleanup function
+ScreenGui.AncestryChanged:Connect(function()
+    if not ScreenGui.Parent then
+        for character, _ in pairs(ESPObjects) do
+            RemovePlayerESP(character)
+        end
+        for monster, _ in pairs(MonsterESPObjects) do
+            RemoveMonsterESP(monster)
+        end
+        for item, _ in pairs(ItemESPObjects) do
+            RemoveItemESP(item)
+        end
+        for door, _ in pairs(DoorESPObjects) do
+            RemoveDoorESP(door)
+        end
+        for hidingSpot, _ in pairs(HidingSpotESPObjects) do
+            RemoveHidingSpotESP(hidingSpot)
+        end
+        for objective, _ in pairs(ObjectiveESPObjects) do
+            RemoveObjectiveESP(objective)
+        end
+        
+        for _, connection in pairs(connections) do
+            if connection then
+                connection:Disconnect()
+            end
+        end
+    end
+end)
+
+-- Startup animation with enhanced effects
+MainFrame.Size = UDim2.new(0, 0, 0, 0)
+MainFrame.BackgroundTransparency = 1
+RGBBorder.Size = UDim2.new(0, 0, 0, 0)
+
+local startupTween = TweenService:Create(MainFrame,
+    TweenInfo.new(0.8, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
+    {Size = UDim2.new(0, 380, 0, 700), BackgroundTransparency = 0}
+)
+
+local borderTween = TweenService:Create(RGBBorder,
+    TweenInfo.new(0.8, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
+    {Size = UDim2.new(1, 4, 1, 4)}
+)
+
+wait(0.3)
+startupTween:Play()
+borderTween:Play()
+
+-- Special Mimic features
+local function SetupMimicSpecificFeatures()
+    -- Monitor for specific Mimic game events
+    local mimicEvents = {"MonsterSpawned", "PlayerHidden", "ObjectiveCompleted", "DoorOpened"}
+    
+    for _, eventName in pairs(mimicEvents) do
+        local remoteEvent = game.ReplicatedStorage:FindFirstChild(eventName)
+        if remoteEvent and remoteEvent:IsA("RemoteEvent") then
+            remoteEvent.OnClientEvent:Connect(function(...)
+                if eventName == "MonsterSpawned" then
+                    wait(1)
+                    ScanWorkspace()
+                end
+            end)
+        end
+    end
+end
+
+-- Initialize Mimic-specific features
+spawn(function()
+    wait(2)
+    SetupMimicSpecificFeatures()
+end)
+
+print("✅ ESP Mimic Edition Pro โหลดเสร็จสิ้น!")
+print("🎮 กดปุ่ม Insert เพื่อเปิด/ปิด ESP")
+print("👹 ฟีเจอร์พิเศษสำหรับแมพ Mimic ได้รับการเปิดใช้งาน")
