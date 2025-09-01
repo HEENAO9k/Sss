@@ -1,0 +1,360 @@
+
+-- Load UI Library
+local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/xHeptc/Kavo-UI-Library/main/source.lua"))()
+
+-- Services
+local Players = game:GetService("Players")
+local Workspace = game:GetService("Workspace")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+-- Variables
+local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
+
+-- Cheat Variables
+local infiniteSpeed = false
+local autoWin = false
+local teleportToFinish = false
+local noClip = false
+local flyMode = false
+local speedHack = false
+local speedValue = 50
+
+-- UI Creation
+local Window = Library.CreateLib("🚤 Boat Race Cheat Menu", "BloodTheme")
+
+-- Main Tab
+local MainTab = Window:NewTab("🎮 Main Cheats")
+local MainSection = MainTab:NewSection("เมนูโกงหลัก")
+
+-- Player Tab
+local PlayerTab = Window:NewTab("👤 Player")
+local PlayerSection = PlayerTab:NewSection("ตัวผู้เล่น")
+
+-- Teleport Tab
+local TeleportTab = Window:NewTab("📍 Teleport")
+local TeleportSection = TeleportTab:NewSection("วาร์ป")
+
+-- Settings Tab
+local SettingsTab = Window:NewTab("⚙️ Settings")
+local SettingsSection = SettingsTab:NewSection("การตั้งค่า")
+
+-- Functions
+local function getCharacter()
+    return player.Character or player.CharacterAdded:Wait()
+end
+
+local function getRootPart()
+    local character = getCharacter()
+    return character and character:FindFirstChild("HumanoidRootPart")
+end
+
+local function getHumanoid()
+    local character = getCharacter()
+    return character and character:FindFirstChild("Humanoid")
+end
+
+-- Auto Win Function
+local function autoWinFunction()
+    spawn(function()
+        while autoWin do
+            local gameContainer = Workspace:FindFirstChild("GameContainer")
+            if gameContainer then
+                local boat = gameContainer:FindFirstChild("Boat")
+                if boat then
+                    -- หาเรือของผู้เล่น
+                    for _, boatModel in pairs(boat:GetChildren()) do
+                        if boatModel:FindFirstChild("Main") and boatModel.Main:FindFirstChild("PlayerLocation") then
+                            local rootPart = getRootPart()
+                            if rootPart then
+                                -- เทเลพอร์ตไปที่เส้นชัย
+                                rootPart.CFrame = CFrame.new(1000, 100, 0) -- ปรับตำแหน่งตามแมพ
+                            end
+                        end
+                    end
+                end
+            end
+            wait(0.1)
+        end
+    end)
+end
+
+-- Speed Hack Function
+local function speedHackFunction()
+    spawn(function()
+        while speedHack do
+            local humanoid = getHumanoid()
+            if humanoid then
+                humanoid.WalkSpeed = speedValue
+            end
+            wait(0.1)
+        end
+    end)
+end
+
+-- Fly Function
+local function flyFunction()
+    local character = getCharacter()
+    local humanoid = getHumanoid()
+    local rootPart = getRootPart()
+    
+    if not character or not humanoid or not rootPart then return end
+    
+    local bodyVelocity = Instance.new("BodyVelocity")
+    bodyVelocity.MaxForce = Vector3.new(4000, 4000, 4000)
+    bodyVelocity.Velocity = Vector3.new(0, 0, 0)
+    bodyVelocity.Parent = rootPart
+    
+    local function onKeyDown(key)
+        if not flyMode then return end
+        
+        local camera = Workspace.CurrentCamera
+        local moveVector = Vector3.new(0, 0, 0)
+        
+        if key == "w" then
+            moveVector = camera.CFrame.LookVector * 50
+        elseif key == "s" then
+            moveVector = camera.CFrame.LookVector * -50
+        elseif key == "a" then
+            moveVector = camera.CFrame.RightVector * -50
+        elseif key == "d" then
+            moveVector = camera.CFrame.RightVector * 50
+        elseif key == "q" then
+            moveVector = Vector3.new(0, -50, 0)
+        elseif key == "e" then
+            moveVector = Vector3.new(0, 50, 0)
+        end
+        
+        bodyVelocity.Velocity = moveVector
+    end
+    
+    local function onKeyUp()
+        if bodyVelocity then
+            bodyVelocity.Velocity = Vector3.new(0, 0, 0)
+        end
+    end
+    
+    UserInputService.InputBegan:Connect(function(input, gameProcessed)
+        if gameProcessed then return end
+        onKeyDown(input.KeyCode.Name:lower())
+    end)
+    
+    UserInputService.InputEnded:Connect(function(input, gameProcessed)
+        if gameProcessed then return end
+        onKeyUp()
+    end)
+    
+    return bodyVelocity
+end
+
+-- No Clip Function
+local function noClipFunction()
+    spawn(function()
+        while noClip do
+            local character = getCharacter()
+            if character then
+                for _, part in pairs(character:GetDescendants()) do
+                    if part:IsA("BasePart") and part.CanCollide then
+                        part.CanCollide = false
+                    end
+                end
+            end
+            wait(0.1)
+        end
+    end)
+end
+
+-- Main Cheats
+MainSection:NewToggle("🏆 Auto Win", "ชนะอัตโนมัติ", function(state)
+    autoWin = state
+    if state then
+        autoWinFunction()
+    end
+end)
+
+MainSection:NewToggle("🚀 Infinite Speed", "ความเร็วไม่จำกัด", function(state)
+    infiniteSpeed = state
+    local character = getCharacter()
+    if character then
+        local humanoid = getHumanoid()
+        if humanoid then
+            if state then
+                humanoid.WalkSpeed = 500
+            else
+                humanoid.WalkSpeed = 16
+            end
+        end
+    end
+end)
+
+MainSection:NewButton("📍 Teleport to Finish", "วาร์ปไปเส้นชัย", function()
+    local rootPart = getRootPart()
+    if rootPart then
+        rootPart.CFrame = CFrame.new(1000, 100, 0) -- ปรับตำแหน่งตามแมพ
+    end
+end)
+
+-- Player Cheats
+PlayerSection:NewToggle("💨 Speed Hack", "แฮ็คความเร็ว", function(state)
+    speedHack = state
+    if state then
+        speedHackFunction()
+    else
+        local humanoid = getHumanoid()
+        if humanoid then
+            humanoid.WalkSpeed = 16
+        end
+    end
+end)
+
+PlayerSection:NewSlider("⚡ Speed Value", "ค่าความเร็ว", 500, 16, function(s)
+    speedValue = s
+end)
+
+PlayerSection:NewToggle("🚁 Fly Mode", "โหมดบิน (WASD + Q/E)", function(state)
+    flyMode = state
+    if state then
+        flyFunction()
+    else
+        local rootPart = getRootPart()
+        if rootPart then
+            local bodyVelocity = rootPart:FindFirstChild("BodyVelocity")
+            if bodyVelocity then
+                bodyVelocity:Destroy()
+            end
+        end
+    end
+end)
+
+PlayerSection:NewToggle("👻 No Clip", "ผ่านกำแพงได้", function(state)
+    noClip = state
+    if state then
+        noClipFunction()
+    else
+        local character = getCharacter()
+        if character then
+            for _, part in pairs(character:GetDescendants()) do
+                if part:IsA("BasePart") then
+                    part.CanCollide = true
+                end
+            end
+        end
+    end
+end)
+
+-- Teleport Functions
+TeleportSection:NewButton("🚤 Teleport to Duck Boat", "วาร์ปไปเรือเป็ด", function()
+    local gameContainer = Workspace:FindFirstChild("GameContainer")
+    if gameContainer then
+        local boat = gameContainer:FindFirstChild("Boat")
+        if boat then
+            local duckBoat = boat:FindFirstChild("Duck")
+            if duckBoat and duckBoat:FindFirstChild("Main") then
+                local rootPart = getRootPart()
+                if rootPart then
+                    rootPart.CFrame = duckBoat.Main.CFrame + Vector3.new(0, 5, 0)
+                end
+            end
+        end
+    end
+end)
+
+TeleportSection:NewButton("🔴 Teleport to Red Boat", "วาร์ปไปเรือแดง", function()
+    local gameContainer = Workspace:FindFirstChild("GameContainer")
+    if gameContainer then
+        local boat = gameContainer:FindFirstChild("Boat")
+        if boat then
+            local redBoat = boat:FindFirstChild("Red")
+            if redBoat and redBoat:FindFirstChild("Main") then
+                local rootPart = getRootPart()
+                if rootPart then
+                    rootPart.CFrame = redBoat.Main.CFrame + Vector3.new(0, 5, 0)
+                end
+            end
+        end
+    end
+end)
+
+TeleportSection:NewButton("🎯 Teleport to Start Line", "วาร์ปไปเส้นสตาร์ท", function()
+    local rootPart = getRootPart()
+    if rootPart then
+        rootPart.CFrame = CFrame.new(0, 50, 0) -- ปรับตำแหน่งตามแมพ
+    end
+end)
+
+-- Custom Teleport
+TeleportSection:NewTextBox("📌 Custom X Position", "ตำแหน่ง X", function(txt)
+    local x = tonumber(txt) or 0
+    local rootPart = getRootPart()
+    if rootPart then
+        local currentPos = rootPart.CFrame.Position
+        rootPart.CFrame = CFrame.new(x, currentPos.Y, currentPos.Z)
+    end
+end)
+
+TeleportSection:NewTextBox("📌 Custom Y Position", "ตำแหน่ง Y", function(txt)
+    local y = tonumber(txt) or 0
+    local rootPart = getRootPart()
+    if rootPart then
+        local currentPos = rootPart.CFrame.Position
+        rootPart.CFrame = CFrame.new(currentPos.X, y, currentPos.Z)
+    end
+end)
+
+TeleportSection:NewTextBox("📌 Custom Z Position", "ตำแหน่ง Z", function(txt)
+    local z = tonumber(txt) or 0
+    local rootPart = getRootPart()
+    if rootPart then
+        local currentPos = rootPart.CFrame.Position
+        rootPart.CFrame = CFrame.new(currentPos.X, currentPos.Y, z)
+    end
+end)
+
+-- Settings
+SettingsSection:NewKeybind("🔧 Toggle UI", "แสดง/ซ่อน UI", Enum.KeyCode.RightControl, function()
+    Library:ToggleUI()
+end)
+
+SettingsSection:NewButton("🔄 Reset Character", "รีเซ็ตตัวละคร", function()
+    local character = getCharacter()
+    if character then
+        local humanoid = getHumanoid()
+        if humanoid then
+            humanoid.Health = 0
+        end
+    end
+end)
+
+SettingsSection:NewButton("❌ Destroy GUI", "ปิด GUI", function()
+    Library:Destroy()
+end)
+
+-- Auto-detect and display current position
+spawn(function()
+    while wait(1) do
+        local rootPart = getRootPart()
+        if rootPart then
+            local pos = rootPart.CFrame.Position
+            print(string.format("Current Position: X=%.1f, Y=%.1f, Z=%.1f", pos.X, pos.Y, pos.Z))
+        end
+    end
+end)
+
+-- Notifications
+game.StarterGui:SetCore("SendNotification", {
+    Title = "🚤 Boat Race Cheat";
+    Text = "สคริปต์โหลดเสร็จแล้ว! กด RightCtrl เพื่อแสดง/ซ่อน UI";
+    Duration = 5;
+})
+
+print("🚤 Boat Race Cheat Script Loaded!")
+print("📌 Features:")
+print("  - Auto Win")
+print("  - Speed Hack") 
+print("  - Fly Mode")
+print("  - No Clip")
+print("  - Teleport Functions")
+print("🔧 Press RightCtrl to toggle UI")
