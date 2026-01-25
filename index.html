@@ -244,7 +244,7 @@
         <div class="rose-decoration bottom-right">🥀</div>
         
         <h1>Word Chain</h1>
-        <p class="subtitle">FALL ROSE EDITION - POWERED BY AI</p>
+        <p class="subtitle">FALL ROSE EDITION - POWERED BY AI (optional)</p>
         
         <div class="form-group">
             <label for="modelSelect">เลือกโมเดล AI (ฟรีทั้งหมด):</label>
@@ -265,7 +265,7 @@
                 <option value="tngtech/deepseek-r1t-chimera:free">DeepSeek R1T Chimera</option>
                 <option value="z-ai/glm-4.5-air:free">GLM 4.5 Air</option>
             </select>
-            <div class="model-info">💡 โมเดลทั้งหมดฟรี ไม่มีค่าใช้จ่าย</div>
+            <div class="model-info">💡 โมเดลทั้งหมดฟรี ไม่มีค่าใช้จ่าย (ถ้าเชื่อมต่อผ่าน proxy)</div>
         </div>
 
         <div class="form-group">
@@ -292,24 +292,83 @@
         </div>
 
         <div class="api-status" id="apiStatus">
-            🔒 ใช้ OpenRouter API - ปลอดภัย
+            🔒 ไม่เผยแพร่คีย์ในฝั่งไคลเอนต์ — ถ้าต้องการ AI จริง ให้ติดตั้ง proxy ตาม README
         </div>
     </div>
 
     <script>
-        const API_KEY = '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';
+        // NOTE: API key removed from client for security. To enable AI mode, deploy the serverless proxy (see /api/openrouter.js)
+        const PROXY_ENDPOINT = '/api/openrouter'; // Vercel or Netlify function path (if deployed). If not available, the page will fallback to local word generation.
         const API_URL = 'https://openrouter.ai/api/v1/chat/completions';
         let generatedWords = '';
 
+        async function callProxy(model, wordCount) {
+            try {
+                const res = await fetch(PROXY_ENDPOINT, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ model, wordCount })
+                });
+
+                if (!res.ok) {
+                    const txt = await res.text();
+                    throw new Error('Proxy error: ' + (txt || res.status));
+                }
+
+                const data = await res.json();
+                // Expecting { success: true, content: '...' }
+                return data.content;
+            } catch (e) {
+                console.warn('Proxy call failed:', e);
+                throw e;
+            }
+        }
+
+        function localGenerate(wordCount) {
+            // Simple deterministic fallback: pick first N unique backup words and return sorted list
+            const backupWords = [
+                'abandon','ability','about','above','absent','absorb','abstract','abuse','accept','access',
+                'badge','balance','banana','banner','barrel','basic','basket','battle','beach','beauty',
+                'cabin','cable','cactus','cage','calendar','camera','campus','cancel','candle','canvas',
+                'damage','danger','database','debate','decade','decide','decline','decorate','decrease','defend',
+                'eager','eagle','early','earth','eastern','easy','echo','ecology','economy','edge',
+                'fabric','face','factor','factory','faculty','fade','failure','fair','faith','fall',
+                'gadget','gain','galaxy','gallery','game','garage','garden','garlic','gas','gate',
+                'habitat','habit','hair','half','hammer','hand','handle','happen','happy','harbor',
+                'ice','icon','idea','ideal','identify','ignore','image','imagine','impact','include',
+                'jacket','jaguar','jail','jar','jazz','jealous','jeans','jelly','jewel','join',
+                'kangaroo','keen','keep','kernel','kettle','key','keyboard','kick','kind','king',
+                'label','labor','ladder','lady','lake','lamp','land','language','laptop','large',
+                'machine','magic','magnet','main','major','make','mammal','manage','manner','manual',
+                'name','narrow','nation','native','natural','nature','navy','near','neck','need',
+                'oak','oasis','obey','object','observe','obtain','obvious','ocean','offer','office',
+                'package','page','pain','paint','pair','palace','palm','panel','paper','parade',
+                'quality','quantity','quarter','queen','question','quick','quiet','quit','quiz','quote',
+                'rabbit','race','radar','radio','rail','rainbow','raise','random','range','rapid',
+                'saddle','safe','safety','sail','salad','salary','sale','salmon','salt','sample',
+                'table','tablet','tackle','tail','talent','talk','tall','tank','tape','target',
+                'ugly','ultimate','umbrella','unable','uncle','under','unfold','uniform','union','unique',
+                'vacuum','valid','valley','value','van','vanilla','vanish','vapor','variable','variety',
+                'wage','wagon','wait','wake','walk','wall','wallet','walnut','want','war',
+                'xerox','xray','xylophone',
+                'yacht','yard','yarn','year','yellow','yes','yesterday','yield','yoga','young',
+                'zebra','zero','zigzag','zinc','zone','zoo','zoom'
+            ];
+
+            const unique = [...new Set(backupWords)].slice(0, Math.max(5, Math.min(500, wordCount)));
+            unique.sort();
+            return unique.join('\n');
+        }
+
         async function generateWords() {
-            const wordCount = document.getElementById('wordCount').value;
+            const wordCount = parseInt(document.getElementById('wordCount').value, 10);
             const model = document.getElementById('modelSelect').value;
             const btn = document.getElementById('generateBtn');
             const loading = document.getElementById('loading');
             const result = document.getElementById('result');
             const errorMsg = document.getElementById('errorMsg');
             const loadingText = document.getElementById('loadingText');
-            
+
             if (!wordCount || wordCount < 5) {
                 showError('กรุณาระบุจำนวนคำศัพท์อย่างน้อย 5 คำ');
                 return;
@@ -322,131 +381,58 @@
             loadingText.textContent = `AI (${model.split('/')[1].split(':')[0]}) กำลังสร้างคำศัพท์...`;
 
             try {
-                const response = await fetch(API_URL, {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': `Bearer ${API_KEY}`,
-                        'Content-Type': 'application/json',
-                        'HTTP-Referer': window.location.href,
-                        'X-Title': 'Word Chain Generator'
-                    },
-                    body: JSON.stringify({
-                        model: model,
-                        messages: [{
-                            role: 'user',
-                            content: `Generate exactly ${wordCount} common English words in alphabetical order (A-Z).
+                let aiResponse = null;
 
-Requirements:
-- Sort words alphabetically from A to Z
-- Each word should be 3-12 letters long
-- Use common, everyday English words (nouns, verbs, adjectives)
-- No proper nouns, no abbreviations
-- Words should be suitable for all ages
-- Try to distribute words across the alphabet evenly
-- Output ONLY the words, one per line
-- NO numbering, NO bullets, NO extra text
-
-Example format:
-apple
-banana
-castle
-dragon
-elegant
-forest
-
-Generate ${wordCount} words now sorted A-Z (ONLY words, one per line):`
-                        }],
-                        temperature: 0.8,
-                        max_tokens: Math.min(wordCount * 15, 8000)
-                    })
-                });
-
-                if (!response.ok) {
-                    const errorData = await response.json();
-                    throw new Error(errorData.error?.message || 'API request failed');
+                // Try proxy first (if deployed). If it fails or not available, fall back to local generation.
+                try {
+                    aiResponse = await callProxy(model, wordCount);
+                } catch (e) {
+                    console.info('Falling back to local generation. To enable AI, deploy the proxy (see README).');
+                    aiResponse = null;
                 }
 
-                const data = await response.json();
-                const aiResponse = data.choices[0].message.content.trim();
-                
-                // ทำความสะอาดข้อมูล - เอาเฉพาะคำศัพท์
-                const lines = aiResponse.split('\n');
-                const cleanWords = [];
-                
-                for (let line of lines) {
-                    line = line.trim();
-                    // ลบตัวเลข, จุด, dash และอักขระพิเศษ
-                    let word = line.replace(/^[\d\-\.\)\]\}\*\#]+\s*/, '').trim();
-                    word = word.replace(/[^a-zA-Z]/g, '');
-                    
-                    if (word && word.length >= 3 && word.length <= 15) {
-                        cleanWords.push(word.toLowerCase());
-                    }
-                }
+                let finalWords = [];
 
-                // ลบคำซ้ำ
-                let uniqueWords = [...new Set(cleanWords)];
+                if (aiResponse) {
+                    const lines = aiResponse.split('\n');
+                    const cleanWords = [];
 
-                // เรียงตามตัวอักษร A-Z
-                uniqueWords.sort();
+                    for (let line of lines) {
+                        line = line.trim();
+                        let word = line.replace(/^[\d\-\.\)\]\}\*\#]+\s*/, '').trim();
+                        word = word.replace(/[^a-zA-Z]/g, '');
 
-                // ถ้าได้คำไม่พอ ให้เพิ่มคำพื้นฐานแบบเรียง A-Z
-                if (uniqueWords.length < parseInt(wordCount)) {
-                    const backupWords = [
-                        'abandon', 'ability', 'about', 'above', 'absent', 'absorb', 'abstract', 'abuse', 'accept', 'access',
-                        'badge', 'balance', 'banana', 'banner', 'barrel', 'basic', 'basket', 'battle', 'beach', 'beauty',
-                        'cabin', 'cable', 'cactus', 'cage', 'calendar', 'camera', 'campus', 'cancel', 'candle', 'canvas',
-                        'damage', 'danger', 'database', 'debate', 'decade', 'decide', 'decline', 'decorate', 'decrease', 'defend',
-                        'eager', 'eagle', 'early', 'earth', 'eastern', 'easy', 'echo', 'ecology', 'economy', 'edge',
-                        'fabric', 'face', 'factor', 'factory', 'faculty', 'fade', 'failure', 'fair', 'faith', 'fall',
-                        'gadget', 'gain', 'galaxy', 'gallery', 'game', 'garage', 'garden', 'garlic', 'gas', 'gate',
-                        'habitat', 'habit', 'hair', 'half', 'hammer', 'hand', 'handle', 'happen', 'happy', 'harbor',
-                        'ice', 'icon', 'idea', 'ideal', 'identify', 'ignore', 'image', 'imagine', 'impact', 'include',
-                        'jacket', 'jaguar', 'jail', 'jar', 'jazz', 'jealous', 'jeans', 'jelly', 'jewel', 'join',
-                        'kangaroo', 'keen', 'keep', 'kernel', 'kettle', 'key', 'keyboard', 'kick', 'kind', 'king',
-                        'label', 'labor', 'ladder', 'lady', 'lake', 'lamp', 'land', 'language', 'laptop', 'large',
-                        'machine', 'magic', 'magnet', 'main', 'major', 'make', 'mammal', 'manage', 'manner', 'manual',
-                        'name', 'narrow', 'nation', 'native', 'natural', 'nature', 'navy', 'near', 'neck', 'need',
-                        'oak', 'oasis', 'obey', 'object', 'observe', 'obtain', 'obvious', 'ocean', 'offer', 'office',
-                        'package', 'page', 'pain', 'paint', 'pair', 'palace', 'palm', 'panel', 'paper', 'parade',
-                        'quality', 'quantity', 'quarter', 'queen', 'question', 'quick', 'quiet', 'quit', 'quiz', 'quote',
-                        'rabbit', 'race', 'radar', 'radio', 'rail', 'rainbow', 'raise', 'random', 'range', 'rapid',
-                        'saddle', 'safe', 'safety', 'sail', 'salad', 'salary', 'sale', 'salmon', 'salt', 'sample',
-                        'table', 'tablet', 'tackle', 'tail', 'talent', 'talk', 'tall', 'tank', 'tape', 'target',
-                        'ugly', 'ultimate', 'umbrella', 'unable', 'uncle', 'under', 'unfold', 'uniform', 'union', 'unique',
-                        'vacuum', 'valid', 'valley', 'value', 'van', 'vanilla', 'vanish', 'vapor', 'variable', 'variety',
-                        'wage', 'wagon', 'wait', 'wake', 'walk', 'wall', 'wallet', 'walnut', 'want', 'war',
-                        'xerox', 'xray', 'xylophone',
-                        'yacht', 'yard', 'yarn', 'year', 'yellow', 'yes', 'yesterday', 'yield', 'yoga', 'young',
-                        'zebra', 'zero', 'zigzag', 'zinc', 'zone', 'zoo', 'zoom'
-                    ];
-                    
-                    // เพิ่มคำที่ยังไม่มี
-                    for (let word of backupWords) {
-                        if (!uniqueWords.includes(word) && uniqueWords.length < parseInt(wordCount)) {
-                            uniqueWords.push(word);
+                        if (word && word.length >= 3 && word.length <= 15) {
+                            cleanWords.push(word.toLowerCase());
                         }
                     }
-                    
-                    // เรียงใหม่อีกครั้ง
+
+                    let uniqueWords = [...new Set(cleanWords)];
                     uniqueWords.sort();
+
+                    if (uniqueWords.length < wordCount) {
+                        const backup = localGenerate(wordCount).split('\n');
+                        for (let w of backup) {
+                            if (!uniqueWords.includes(w) && uniqueWords.length < wordCount) uniqueWords.push(w);
+                        }
+                        uniqueWords.sort();
+                    }
+
+                    finalWords = uniqueWords.slice(0, wordCount);
+                } else {
+                    // Local deterministic fallback
+                    finalWords = localGenerate(wordCount).split('\n').slice(0, wordCount);
                 }
 
-                if (uniqueWords.length < 5) {
-                    throw new Error('ได้คำศัพท์ไม่เพียงพอ กรุณาลองใหม่อีกครั้ง');
-                }
-
-                // ตัดให้เท่ากับจำนวนที่ต้องการ
-                const finalWords = uniqueWords.slice(0, parseInt(wordCount));
                 generatedWords = finalWords.join('\n');
-                
+
                 document.getElementById('resultText').innerHTML = 
                     `✨ สร้างคำศัพท์สำเร็จ! จำนวน ${finalWords.length} คำ<br>
                     <small style="color: #dc143c;">โมเดล: ${model.split('/')[1]}</small><br>
                     <small style="color: #dc143c;">เรียงตาม A-Z: ${finalWords[0]} → ${finalWords[finalWords.length-1]}</small><br>
                     <small style="color: #8b0000;">ตัวอย่าง: ${finalWords.slice(0, 5).join(', ')}...</small>`;
                 result.classList.add('show');
-                
+
             } catch (error) {
                 console.error('Error:', error);
                 showError('❌ เกิดข้อผิดพลาด: ' + error.message);
@@ -477,11 +463,23 @@ Generate ${wordCount} words now sorted A-Z (ONLY words, one per line):`
             document.body.removeChild(a);
         }
 
-        // ตรวจสอบ API พร้อมใช้งาน
-        window.addEventListener('load', function() {
+        // ตรวจสอบ API พร้อมใช้งาน (client-side only)
+        window.addEventListener('load', async function() {
             const status = document.getElementById('apiStatus');
-            status.textContent = '✅ พร้อมใช้งาน - เลือกโมเดลและเริ่มสร้างคำศัพท์';
-            status.classList.add('connected');
+
+            // Quick check if proxy endpoint exists
+            try {
+                const res = await fetch(PROXY_ENDPOINT, { method: 'OPTIONS' });
+                if (res.ok || res.status === 204 || res.status === 405) {
+                    status.textContent = '✅ Proxy available — AI mode enabled (if server deployed)';
+                    status.classList.add('connected');
+                    return;
+                }
+            } catch (e) {
+                // ignore
+            }
+
+            status.textContent = 'ℹ️ Proxy not found — running with local fallback. Deploy proxy to enable AI (see README).';
         });
     </script>
 </body>
