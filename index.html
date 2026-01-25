@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Word Chain Generator - Fall Rose</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0a0a0a 0%, #1a0a0a 50%, #2a0505 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            position: relative;
+            overflow-x: hidden;
+        }
+
+        body::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: 
+                radial-gradient(circle at 20% 50%, rgba(139, 0, 0, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 80% 80%, rgba(220, 20, 60, 0.08) 0%, transparent 50%);
+            pointer-events: none;
+        }
+
+        .container {
+            background: rgba(20, 10, 10, 0.85);
+            border: 2px solid rgba(139, 0, 0, 0.3);
+            border-radius: 20px;
+            padding: 40px;
+            max-width: 600px;
+            width: 100%;
+            box-shadow: 
+                0 20px 60px rgba(0, 0, 0, 0.5),
+                inset 0 1px 0 rgba(220, 20, 60, 0.1);
+            backdrop-filter: blur(10px);
+            position: relative;
+            z-index: 1;
+        }
+
+        h1 {
+            color: #dc143c;
+            text-align: center;
+            margin-bottom: 10px;
+            font-size: 2.5em;
+            text-shadow: 0 0 20px rgba(220, 20, 60, 0.5);
+            letter-spacing: 2px;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #8b0000;
+            margin-bottom: 30px;
+            font-size: 0.9em;
+            letter-spacing: 1px;
+        }
+
+        .form-group {
+            margin-bottom: 25px;
+        }
+
+        label {
+            display: block;
+            color: #dc143c;
+            margin-bottom: 8px;
+            font-weight: 500;
+            font-size: 0.95em;
+        }
+
+        input[type="number"],
+        select {
+            width: 100%;
+            padding: 12px 15px;
+            background: rgba(0, 0, 0, 0.5);
+            border: 2px solid rgba(139, 0, 0, 0.3);
+            border-radius: 10px;
+            color: #fff;
+            font-size: 16px;
+            transition: all 0.3s ease;
+        }
+
+        select {
+            cursor: pointer;
+        }
+
+        select option {
+            background: #1a0a0a;
+            color: #fff;
+        }
+
+        input[type="number"]:focus,
+        select:focus {
+            outline: none;
+            border-color: #dc143c;
+            box-shadow: 0 0 15px rgba(220, 20, 60, 0.3);
+        }
+
+        .model-info {
+            font-size: 0.75em;
+            color: #8b0000;
+            margin-top: 5px;
+            font-style: italic;
+        }
+
+        button {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(135deg, #8b0000 0%, #dc143c 100%);
+            border: none;
+            border-radius: 10px;
+            color: white;
+            font-size: 1.1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            box-shadow: 0 5px 20px rgba(220, 20, 60, 0.3);
+        }
+
+        button:hover:not(:disabled) {
+            background: linear-gradient(135deg, #a00000 0%, #ff1744 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(220, 20, 60, 0.5);
+        }
+
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            margin-top: 20px;
+            color: #dc143c;
+            font-size: 0.95em;
+        }
+
+        .spinner {
+            border: 3px solid rgba(220, 20, 60, 0.1);
+            border-top: 3px solid #dc143c;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .result {
+            display: none;
+            margin-top: 20px;
+            padding: 20px;
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(139, 0, 0, 0.3);
+            border-radius: 10px;
+        }
+
+        .result.show {
+            display: block;
+        }
+
+        .result p {
+            color: #fff;
+            margin-bottom: 15px;
+            line-height: 1.6;
+        }
+
+        .download-btn {
+            background: linear-gradient(135deg, #1a1a1a 0%, #3a0a0a 100%);
+            margin-top: 15px;
+        }
+
+        .download-btn:hover {
+            background: linear-gradient(135deg, #2a2a2a 0%, #4a1a1a 100%);
+        }
+
+        .rose-decoration {
+            position: absolute;
+            font-size: 3em;
+            opacity: 0.1;
+            pointer-events: none;
+        }
+
+        .rose-decoration.top-left {
+            top: -20px;
+            left: -20px;
+            color: #dc143c;
+        }
+
+        .rose-decoration.bottom-right {
+            bottom: -20px;
+            right: -20px;
+            color: #8b0000;
+        }
+
+        .api-status {
+            text-align: center;
+            font-size: 0.8em;
+            color: #666;
+            margin-top: 20px;
+        }
+
+        .api-status.connected {
+            color: #4CAF50;
+        }
+
+        .error-msg {
+            background: rgba(139, 0, 0, 0.2);
+            border: 1px solid rgba(220, 20, 60, 0.5);
+            padding: 15px;
+            border-radius: 10px;
+            color: #ff6b6b;
+            margin-top: 15px;
+            display: none;
+        }
+
+        .error-msg.show {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="rose-decoration top-left">🌹</div>
+        <div class="rose-decoration bottom-right">🥀</div>
+        
+        <h1>Word Chain</h1>
+        <p class="subtitle">FALL ROSE EDITION - POWERED BY AI</p>
+        
+        <div class="form-group">
+            <label for="modelSelect">เลือกโมเดล AI (ฟรีทั้งหมด):</label>
+            <select id="modelSelect">
+                <option value="google/gemini-2.0-flash-exp:free">Google Gemini 2.0 Flash (แนะนำ)</option>
+                <option value="qwen/qwen3-coder:free">Qwen 3 Coder</option>
+                <option value="mistralai/devstral-2512:free">Mistral Devstral</option>
+                <option value="openai/gpt-oss-120b:free">GPT OSS 120B</option>
+                <option value="openai/gpt-oss-20b:free">GPT OSS 20B</option>
+                <option value="liquid/lfm-2.5-1.2b-thinking:free">Liquid LFM Thinking</option>
+                <option value="liquid/lfm-2.5-1.2b-instruct:free">Liquid LFM Instruct</option>
+                <option value="allenai/molmo-2-8b:free">Allen AI Molmo</option>
+                <option value="xiaomi/mimo-v2-flash:free">Xiaomi Mimo V2</option>
+                <option value="nvidia/nemotron-3-nano-30b-a3b:free">NVIDIA Nemotron 30B</option>
+                <option value="nvidia/nemotron-nano-12b-v2-vl:free">NVIDIA Nemotron 12B</option>
+                <option value="tngtech/tng-r1t-chimera:free">TNG R1T Chimera</option>
+                <option value="tngtech/deepseek-r1t2-chimera:free">DeepSeek R1T2 Chimera</option>
+                <option value="tngtech/deepseek-r1t-chimera:free">DeepSeek R1T Chimera</option>
+                <option value="z-ai/glm-4.5-air:free">GLM 4.5 Air</option>
+            </select>
+            <div class="model-info">💡 โมเดลทั้งหมดฟรี ไม่มีค่าใช้จ่าย</div>
+        </div>
+
+        <div class="form-group">
+            <label for="wordCount">จำนวนคำศัพท์ที่ต้องการ:</label>
+            <input type="number" id="wordCount" min="5" max="500" value="50" required>
+        </div>
+        
+        <button id="generateBtn" onclick="generateWords()">
+            สร้างคำศัพท์
+        </button>
+        
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p id="loadingText">AI กำลังสร้างคำศัพท์... กรุณารอสักครู่</p>
+        </div>
+
+        <div class="error-msg" id="errorMsg"></div>
+        
+        <div class="result" id="result">
+            <p id="resultText"></p>
+            <button class="download-btn" onclick="downloadFile()">
+                📥 ดาวน์โหลดไฟล์ TXT
+            </button>
+        </div>
+
+        <div class="api-status" id="apiStatus">
+            🔒 ใช้ OpenRouter API - ปลอดภัย
+        </div>
+    </div>
+
+    <script>
+        const API_KEY = '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';
+        const API_URL = 'https://openrouter.ai/api/v1/chat/completions';
+        let generatedWords = '';
+
+        async function generateWords() {
+            const wordCount = document.getElementById('wordCount').value;
+            const model = document.getElementById('modelSelect').value;
+            const btn = document.getElementById('generateBtn');
+            const loading = document.getElementById('loading');
+            const result = document.getElementById('result');
+            const errorMsg = document.getElementById('errorMsg');
+            const loadingText = document.getElementById('loadingText');
+            
+            if (!wordCount || wordCount < 5) {
+                showError('กรุณาระบุจำนวนคำศัพท์อย่างน้อย 5 คำ');
+                return;
+            }
+
+            btn.disabled = true;
+            loading.style.display = 'block';
+            result.classList.remove('show');
+            errorMsg.classList.remove('show');
+            loadingText.textContent = `AI (${model.split('/')[1].split(':')[0]}) กำลังสร้างคำศัพท์...`;
+
+            try {
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${API_KEY}`,
+                        'Content-Type': 'application/json',
+                        'HTTP-Referer': window.location.href,
+                        'X-Title': 'Word Chain Generator'
+                    },
+                    body: JSON.stringify({
+                        model: model,
+                        messages: [{
+                            role: 'user',
+                            content: `Generate exactly ${wordCount} common English words in alphabetical order (A-Z).
+
+Requirements:
+- Sort words alphabetically from A to Z
+- Each word should be 3-12 letters long
+- Use common, everyday English words (nouns, verbs, adjectives)
+- No proper nouns, no abbreviations
+- Words should be suitable for all ages
+- Try to distribute words across the alphabet evenly
+- Output ONLY the words, one per line
+- NO numbering, NO bullets, NO extra text
+
+Example format:
+apple
+banana
+castle
+dragon
+elegant
+forest
+
+Generate ${wordCount} words now sorted A-Z (ONLY words, one per line):`
+                        }],
+                        temperature: 0.8,
+                        max_tokens: Math.min(wordCount * 15, 8000)
+                    })
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error?.message || 'API request failed');
+                }
+
+                const data = await response.json();
+                const aiResponse = data.choices[0].message.content.trim();
+                
+                // ทำความสะอาดข้อมูล - เอาเฉพาะคำศัพท์
+                const lines = aiResponse.split('\n');
+                const cleanWords = [];
+                
+                for (let line of lines) {
+                    line = line.trim();
+                    // ลบตัวเลข, จุด, dash และอักขระพิเศษ
+                    let word = line.replace(/^[\d\-\.\)\]\}\*\#]+\s*/, '').trim();
+                    word = word.replace(/[^a-zA-Z]/g, '');
+                    
+                    if (word && word.length >= 3 && word.length <= 15) {
+                        cleanWords.push(word.toLowerCase());
+                    }
+                }
+
+                // ลบคำซ้ำ
+                let uniqueWords = [...new Set(cleanWords)];
+
+                // เรียงตามตัวอักษร A-Z
+                uniqueWords.sort();
+
+                // ถ้าได้คำไม่พอ ให้เพิ่มคำพื้นฐานแบบเรียง A-Z
+                if (uniqueWords.length < parseInt(wordCount)) {
+                    const backupWords = [
+                        'abandon', 'ability', 'about', 'above', 'absent', 'absorb', 'abstract', 'abuse', 'accept', 'access',
+                        'badge', 'balance', 'banana', 'banner', 'barrel', 'basic', 'basket', 'battle', 'beach', 'beauty',
+                        'cabin', 'cable', 'cactus', 'cage', 'calendar', 'camera', 'campus', 'cancel', 'candle', 'canvas',
+                        'damage', 'danger', 'database', 'debate', 'decade', 'decide', 'decline', 'decorate', 'decrease', 'defend',
+                        'eager', 'eagle', 'early', 'earth', 'eastern', 'easy', 'echo', 'ecology', 'economy', 'edge',
+                        'fabric', 'face', 'factor', 'factory', 'faculty', 'fade', 'failure', 'fair', 'faith', 'fall',
+                        'gadget', 'gain', 'galaxy', 'gallery', 'game', 'garage', 'garden', 'garlic', 'gas', 'gate',
+                        'habitat', 'habit', 'hair', 'half', 'hammer', 'hand', 'handle', 'happen', 'happy', 'harbor',
+                        'ice', 'icon', 'idea', 'ideal', 'identify', 'ignore', 'image', 'imagine', 'impact', 'include',
+                        'jacket', 'jaguar', 'jail', 'jar', 'jazz', 'jealous', 'jeans', 'jelly', 'jewel', 'join',
+                        'kangaroo', 'keen', 'keep', 'kernel', 'kettle', 'key', 'keyboard', 'kick', 'kind', 'king',
+                        'label', 'labor', 'ladder', 'lady', 'lake', 'lamp', 'land', 'language', 'laptop', 'large',
+                        'machine', 'magic', 'magnet', 'main', 'major', 'make', 'mammal', 'manage', 'manner', 'manual',
+                        'name', 'narrow', 'nation', 'native', 'natural', 'nature', 'navy', 'near', 'neck', 'need',
+                        'oak', 'oasis', 'obey', 'object', 'observe', 'obtain', 'obvious', 'ocean', 'offer', 'office',
+                        'package', 'page', 'pain', 'paint', 'pair', 'palace', 'palm', 'panel', 'paper', 'parade',
+                        'quality', 'quantity', 'quarter', 'queen', 'question', 'quick', 'quiet', 'quit', 'quiz', 'quote',
+                        'rabbit', 'race', 'radar', 'radio', 'rail', 'rainbow', 'raise', 'random', 'range', 'rapid',
+                        'saddle', 'safe', 'safety', 'sail', 'salad', 'salary', 'sale', 'salmon', 'salt', 'sample',
+                        'table', 'tablet', 'tackle', 'tail', 'talent', 'talk', 'tall', 'tank', 'tape', 'target',
+                        'ugly', 'ultimate', 'umbrella', 'unable', 'uncle', 'under', 'unfold', 'uniform', 'union', 'unique',
+                        'vacuum', 'valid', 'valley', 'value', 'van', 'vanilla', 'vanish', 'vapor', 'variable', 'variety',
+                        'wage', 'wagon', 'wait', 'wake', 'walk', 'wall', 'wallet', 'walnut', 'want', 'war',
+                        'xerox', 'xray', 'xylophone',
+                        'yacht', 'yard', 'yarn', 'year', 'yellow', 'yes', 'yesterday', 'yield', 'yoga', 'young',
+                        'zebra', 'zero', 'zigzag', 'zinc', 'zone', 'zoo', 'zoom'
+                    ];
+                    
+                    // เพิ่มคำที่ยังไม่มี
+                    for (let word of backupWords) {
+                        if (!uniqueWords.includes(word) && uniqueWords.length < parseInt(wordCount)) {
+                            uniqueWords.push(word);
+                        }
+                    }
+                    
+                    // เรียงใหม่อีกครั้ง
+                    uniqueWords.sort();
+                }
+
+                if (uniqueWords.length < 5) {
+                    throw new Error('ได้คำศัพท์ไม่เพียงพอ กรุณาลองใหม่อีกครั้ง');
+                }
+
+                // ตัดให้เท่ากับจำนวนที่ต้องการ
+                const finalWords = uniqueWords.slice(0, parseInt(wordCount));
+                generatedWords = finalWords.join('\n');
+                
+                document.getElementById('resultText').innerHTML = 
+                    `✨ สร้างคำศัพท์สำเร็จ! จำนวน ${finalWords.length} คำ<br>
+                    <small style="color: #dc143c;">โมเดล: ${model.split('/')[1]}</small><br>
+                    <small style="color: #dc143c;">เรียงตาม A-Z: ${finalWords[0]} → ${finalWords[finalWords.length-1]}</small><br>
+                    <small style="color: #8b0000;">ตัวอย่าง: ${finalWords.slice(0, 5).join(', ')}...</small>`;
+                result.classList.add('show');
+                
+            } catch (error) {
+                console.error('Error:', error);
+                showError('❌ เกิดข้อผิดพลาด: ' + error.message);
+            } finally {
+                btn.disabled = false;
+                loading.style.display = 'none';
+            }
+        }
+
+        function showError(message) {
+            const errorMsg = document.getElementById('errorMsg');
+            errorMsg.textContent = message;
+            errorMsg.classList.add('show');
+        }
+
+        function downloadFile() {
+            if (!generatedWords) return;
+
+            const blob = new Blob([generatedWords], { type: 'text/plain;charset=utf-8' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            const timestamp = new Date().toISOString().slice(0,10);
+            a.href = url;
+            a.download = `word_chain_vocabulary_${timestamp}.txt`;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+        }
+
+        // ตรวจสอบ API พร้อมใช้งาน
+        window.addEventListener('load', function() {
+            const status = document.getElementById('apiStatus');
+            status.textContent = '✅ พร้อมใช้งาน - เลือกโมเดลและเริ่มสร้างคำศัพท์';
+            status.classList.add('connected');
+        });
+    </script>
+</body>
+</html>
